@@ -1,38 +1,62 @@
 package com.vrgames.lubanbox.core
 
-/** Saved progress: opened relics, and those opened without a single hint (巧手). */
-class Progress(solved: Set<String> = emptySet(), unaided: Set<String> = emptySet()) {
+/**
+ * Saved progress: opened relics, those opened without a single hint (巧手), and those skipped.
+ * A skipped relic counts as done for what opens next (the story goes on, its token is given), and
+ * stays marked until the player comes back and opens it for real.
+ */
+class Progress(solved: Set<String> = emptySet(), unaided: Set<String> = emptySet(), skipped: Set<String> = emptySet()) {
     private val solved = solved.toMutableSet()
     private val unaided = unaided.toMutableSet()
+    private val skipped = skipped.toMutableSet()
 
-    fun solved(id: String) = id in solved
+    /** Done: opened or skipped. */
+    fun solved(id: String) = id in solved || id in skipped
+    /** Opened by the player's own hands (with or without hints). */
+    fun opened(id: String) = id in solved
     fun unaided(id: String) = id in unaided
-    val tokens get() = Relics.all.filter { it.id in solved }.map { it.token }
+    fun skipped(id: String) = id in skipped && id !in solved
+    val tokens get() = Relics.all.filter { solved(it.id) }.map { it.token }
 
     /** Chapters 1–3 are done in turn; the closing chest needs all three treasures. */
     fun chapterOpen(c: Int) = c == 1 || chapterDone(c - 1) && (c < 4 || (1..3).all(::chapterDone))
 
-    /** A relic opens once the one before it is solved (the chest once chapters 1–3 are all done). */
+    /** A relic opens once the one before it is done (the chest once chapters 1–3 are all done). */
     fun open(r: Relic): Boolean {
         val i = Relics.all.indexOf(r)
         if (r.chapter == 4) return chapterOpen(4)
-        return i == 0 || Relics.all[i - 1].id in solved
+        return i == 0 || solved(Relics.all[i - 1].id)
     }
 
-    fun chapterDone(chapter: Int) = Relics.all.filter { it.chapter == chapter }.all { it.id in solved }
+    fun chapterDone(chapter: Int) = Relics.all.filter { it.chapter == chapter }.all { solved(it.id) }
 
     fun record(id: String, hinted: Boolean) {
         solved += id
+        skipped -= id
         if (!hinted) unaided += id
     }
 
-    fun serialize() = Relics.all.filter { it.id in solved }.joinToString(",") { if (it.id in unaided) "${it.id}*" else it.id }
+    fun skip(id: String) {
+        if (id !in solved) skipped += id
+    }
+
+    fun serialize() = Relics.all.filter { solved(it.id) }.joinToString(",") {
+        when {
+            it.id in unaided -> "${it.id}*"
+            it.id in solved -> it.id
+            else -> "${it.id}~"
+        }
+    }
 
     companion object {
         fun parse(s: String?): Progress {
             val ids = Relics.all.map { it.id }.toSet()
-            val items = s.orEmpty().split(',').map { it.trim() }.filter { it.trimEnd('*') in ids }
-            return Progress(items.map { it.trimEnd('*') }.toSet(), items.filter { it.endsWith("*") }.map { it.trimEnd('*') }.toSet())
+            val items = s.orEmpty().split(',').map { it.trim() }.filter { it.trimEnd('*', '~') in ids }
+            return Progress(
+                items.filter { !it.endsWith("~") }.map { it.trimEnd('*') }.toSet(),
+                items.filter { it.endsWith("*") }.map { it.trimEnd('*') }.toSet(),
+                items.filter { it.endsWith("~") }.map { it.trimEnd('~') }.toSet(),
+            )
         }
     }
 }
@@ -63,7 +87,11 @@ class Workshop(val progress: Progress = Progress()) {
         relic = Relics.byId(id)
         this.round = round
         moves = 0
-        if (round == 0) hintsUsed = 0
+        if (round == 0) {
+            hintsUsed = 0
+            ideaGiven = false
+        }
+        lastHint = null
         slide = null
         rotary = null
         assembly = null
@@ -107,6 +135,26 @@ class Workshop(val progress: Progress = Progress()) {
     }
 
     enum class Outcome { MOVED, NEXT_ROUND, OPENED, OPENED_AGAIN }
+
+    /** 「跳过这件」: the relic counts as done (marked skipped) and the next one opens. */
+    fun skip() = progress.skip(relic.id)
+
+    /** The first rung of the hint ladder has been given on this relic: the next ask shows the piece. */
+    var ideaGiven = false; private set
+
+    /** First rung: the way to think about this relic. Counts as a hint. */
+    fun idea(): String {
+        hintsUsed++
+        ideaGiven = true
+        return relic.idea
+    }
+
+    /** 「演示一步」: the solver is about to make a move for the player. Counts as a hint. */
+    fun usedDemo() {
+        hintsUsed++
+        ideaGiven = true
+        lastHint = null
+    }
 
     /** The relic after this one, if it is open. */
     fun next(): Relic? = Relics.all.getOrNull(Relics.all.indexOf(relic) + 1)?.takeIf(progress::open)

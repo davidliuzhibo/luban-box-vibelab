@@ -53,6 +53,7 @@ fun AtlasWindow() {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Relics.all.filter { it.chapter == selected.chapter }.forEach { r ->
                 val mark = when {
+                    progress.skipped(r.id) -> "○ "
                     progress.solved(r.id) -> if (progress.unaided(r.id)) "◆ " else "✓ "
                     r.id == Game.relicId -> "▶ "
                     else -> ""
@@ -84,6 +85,7 @@ fun AtlasWindow() {
                 Text(selected.story, fontSize = 21.sp, color = Ink)
                 selected.facts.forEach { Text("· $it", fontSize = 19.sp, color = Dim) }
                 if (progress.unaided(selected.id)) Text("◆ 巧手：没有看提示就打开了它。", fontSize = 18.sp, color = Gold)
+                if (progress.skipped(selected.id)) Text("○ 这一件跳过了。在台上选它，就能回去再做。", fontSize = 18.sp, color = Gold)
             } else {
                 Text(selected.goal, fontSize = 21.sp, color = Ink)
                 Text("打开它以后，这里会写上它的来历。", fontSize = 18.sp, color = Dim)

@@ -107,7 +107,7 @@ private fun Notes() {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = { Game.raiseBench(-0.05f) }) { Text("降低") }
             Button(onClick = { Game.raiseBench(0.05f) }) { Text("升高") }
-            Text("台面离地 ${(Game.benchHeight * 100).toInt()} 厘米", fontSize = 18.sp, color = Dim)
+            Text("台面在眼睛下方 ${(Game.benchBelowEye * 100).toInt()} 厘米", fontSize = 18.sp, color = Dim)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = { Game.toggleWorkshop() }) { Text(if (Game.workshopEnv) "环境：木作工坊" else "环境：我的房间") }

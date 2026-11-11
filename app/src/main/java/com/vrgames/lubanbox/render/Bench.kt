@@ -311,6 +311,9 @@ class Bench(private val assets: Assets) {
         if (ws.relic.id == relicId) {
             solvedFor = if (!ws.solved) -1.0 else if (solvedFor < 0) 0.0 else solvedFor + dt
             scene?.frame(dt, ws, this, solvedFor)
+            // The opened relic shows itself off: one slow turn of the turntable, with a second burst of dust.
+            if (solvedFor in SPIN_AFTER..SPIN_AFTER + SPIN_S && grab == null) turnTo(yaw + 360.0 / SPIN_S * dt)
+            if (solvedFor >= SPIN_AFTER + SPIN_S / 2 && solvedFor - dt < SPIN_AFTER + SPIN_S / 2) celebrate()
         }
         updateHint(dt)
     }
@@ -399,9 +402,12 @@ class Bench(private val assets: Assets) {
     }
 
     companion object {
+        /** The turn that shows an opened relic off: starts this long after it opens, lasts [SPIN_S]. */
+        const val SPIN_AFTER = 0.8
+        const val SPIN_S = 5.0
         const val TURNTABLE_R = 0.2f
         const val TURNTABLE_H = 0.03f
         /** Bench top middle, this far in front of where the player stands or sits. */
-        const val BENCH_Z = 0.72f
+        const val BENCH_Z = 0.75f
     }
 }

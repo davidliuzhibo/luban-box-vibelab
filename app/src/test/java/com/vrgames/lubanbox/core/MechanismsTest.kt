@@ -72,7 +72,7 @@ class MechanismsTest {
     @Test
     fun workshopRunsTheChapterInOrder() {
         val ws = Workshop()
-        assertEquals("lock", ws.relic.id)
+        assertEquals("box", ws.relic.id)
         assertNull(ws.next())
         for (relic in Relics.chapter(1)) {
             ws.load(relic.id)
@@ -88,6 +88,47 @@ class MechanismsTest {
         assertEquals(4, ws.progress.tokens.size)
         val back = Progress.parse(ws.progress.serialize())
         assertTrue(Relics.chapter(1).all { back.solved(it.id) && back.unaided(it.id) })
+    }
+
+    @Test
+    fun chapterOneGoesFromEasyToHard() {
+        assertEquals(listOf("box", "dougong", "klotski", "lock"), Relics.chapter(1).map { it.id })
+        // The first sliding relic is short; the burr lock, the hardest, comes last.
+        assertTrue(Boxes.newBox().solution()!!.size < Burrs.lock().solution()!!.size)
+        assertTrue(Relics.all.all { it.idea.isNotBlank() })
+    }
+
+    @Test
+    fun skippingMovesOnAndCanBeMadeGoodLater() {
+        val ws = Workshop()
+        ws.skip()
+        assertTrue(ws.progress.solved("box"))
+        assertTrue(ws.progress.skipped("box"))
+        assertFalse(ws.progress.opened("box"))
+        assertEquals("dougong", ws.next()?.id)
+        val back = Progress.parse(ws.progress.serialize())
+        assertTrue(back.skipped("box") && back.open(Relics.byId("dougong")))
+        // Coming back and opening it for real clears the mark.
+        ws.load("box")
+        val p = ws.slide!!
+        for (m in p.solution()!!) p.move(m.piece, m.axis, m.to)
+        assertEquals(Workshop.Outcome.OPENED_AGAIN, ws.afterMove())
+        assertFalse(ws.progress.skipped("box"))
+        assertTrue(ws.progress.unaided("box"))
+    }
+
+    @Test
+    fun theFirstHintIsTheIdeaAndCounts() {
+        val ws = Workshop()
+        assertFalse(ws.ideaGiven)
+        assertEquals(Relics.byId("box").idea, ws.idea())
+        assertTrue(ws.ideaGiven)
+        assertEquals(1, ws.hintsUsed)
+        ws.usedDemo()
+        assertEquals(2, ws.hintsUsed)
+        ws.load("dougong")
+        assertFalse(ws.ideaGiven)
+        assertEquals(0, ws.hintsUsed)
     }
 
     @Test

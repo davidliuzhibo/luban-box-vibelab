@@ -69,6 +69,8 @@ fun WorkshopStage() {
     val converter = LocalPhysicalLengthConverter.current
     var bench by remember { mutableStateOf<Bench?>(null) }
     var sky by remember { mutableStateOf<Entity?>(null) }
+    // Carved rosewood frames behind the scene panels (tools/panel3d), by panel id.
+    val frames = remember { HashMap<String, Entity>() }
     val subscription = remember { arrayOfNulls<Cancellable>(1) }
     val main = remember { Handler(Looper.getMainLooper()) }
     // Last gesture callback (uptime ms), for the stuck-drag check in the frame loop.
@@ -90,9 +92,10 @@ fun WorkshopStage() {
         } else {
             val yaw = Math.toDegrees(kotlin.math.atan2(-f.x, -f.z).toDouble()).toFloat()
             b.faceFrom(pose.position.x, pose.position.z, yaw)
+            pose.position.y.takeIf { it in 0.3f..2.6f }?.let { Game.eyeY = it }
             b.placeInRoom(Game.benchHeight)
             sky?.transform()?.eulerAngles = EulerAngles(0f, yaw, 0f)
-            Log.i("LubanStage", "bench faces the player at (${pose.position.x}, ${pose.position.z}), yaw $yaw")
+            Log.i("LubanStage", "bench faces the player at (${pose.position.x}, ${pose.position.z}), yaw $yaw, eye ${pose.position.y}, bench top ${Game.benchHeight}")
             true
         }
     }
@@ -111,6 +114,8 @@ fun WorkshopStage() {
             subscription[0]?.cancel()
             AutoPilot.stepper = null
             AutoPilot.turner = null
+            Game.demo = null
+            Game.stopVoice()
             navigator.closeWindowContainer(ATLAS_ID)
             navigator.closeWindowContainer(NOTES_ID)
         }
@@ -169,7 +174,7 @@ fun WorkshopStage() {
     }
     LaunchedEffect(Game.coached, Game.showTitle, Game.relicId, Game.relicCardDismissed, bench) {
         // One explanation at a time: the first-move label waits for the relic card.
-        bench?.showCoach(!Game.coached && !Game.showTitle && Game.relicId == "lock" && Game.relicCardDismissed)
+        bench?.showCoach(!Game.coached && !Game.showTitle && Game.relicId == com.vrgames.lubanbox.core.Relics.all.first().id && Game.relicCardDismissed)
     }
     // Scene panels: the title card, the "opened" card and the menu tab.
     LaunchedEffect(Game.showTitle, Game.opened, Game.relicId, bench) {
@@ -177,9 +182,14 @@ fun WorkshopStage() {
         b.showPanel(PANEL_INTRO, Game.showTitle)
         b.showPanel(PANEL_RESULT, !Game.showTitle && Game.opened == Game.relicId)
         b.showPanel(PANEL_MENU, !Game.showTitle)
+        b.showPanel(PANEL_HELP, !Game.showTitle && Game.opened != Game.relicId)
     }
     // The open menu is about half a meter tall and hangs from its middle: lift it clear of the bench top.
-    LaunchedEffect(Game.menuOpen, bench) { bench?.placePanel(PANEL_MENU, if (Game.menuOpen) MENU_OPEN_POS else MENU_POS) }
+    LaunchedEffect(Game.menuOpen, bench) {
+        bench?.placePanel(PANEL_MENU, if (Game.menuOpen) MENU_OPEN_POS else MENU_POS)
+        // The folded menu is a small tab without a frame.
+        frames[PANEL_MENU]?.enabled = Game.menuOpen
+    }
     LaunchedEffect(Game.showTitle, Game.relicCardDismissed, Game.opened, Game.relicId, bench) {
         bench?.showPanel(PANEL_RELIC, !Game.showTitle && !Game.relicCardDismissed && Game.opened != Game.relicId)
     }
@@ -219,7 +229,10 @@ fun WorkshopStage() {
                 val felt = synchronized(Game.lock) { b.drag(d) }
                 when (felt) {
                     Bench.Felt.Tick -> Game.sound?.play(Sfx.TICK, Vec3.ZERO)
-                    Bench.Felt.Bump -> Game.sound?.play(Sfx.BUMP, Vec3.ZERO)
+                    Bench.Felt.Bump -> {
+                        Game.sound?.play(Sfx.BUMP, Vec3.ZERO)
+                        Game.struggle()
+                    }
                     // A dial turned a stop: that is a move by itself.
                     Bench.Felt.Turned -> {
                         Game.sound?.play(Sfx.TICK, Vec3.ZERO)
@@ -235,6 +248,7 @@ fun WorkshopStage() {
             AttachmentPanel(PANEL_INTRO) { IntroPanel(converter) }
             AttachmentPanel(PANEL_RESULT) { ResultPanel(converter) }
             AttachmentPanel(PANEL_RELIC) { RelicCard(converter) }
+            AttachmentPanel(PANEL_HELP) { HelpPanel(converter) }
             AttachmentPanel(PANEL_MENU) {
                 MenuPanel(
                     converter,
@@ -248,7 +262,7 @@ fun WorkshopStage() {
         update = { _, attachments ->
             bench?.let { b ->
                 if (!b.hasCoach) b.attachCoach(attachments.entity(LABEL_FIRST))
-                attachPanels(b, attachments)
+                attachPanels(b, attachments, frames)
             }
         },
         initial = { content, attachments ->
@@ -262,6 +276,11 @@ fun WorkshopStage() {
                 components[TransformComponent::class.java]?.setEulerAngles(EulerAngles(-15f, -130f, 0f))
             })
 
+            for (id in FRAME_SIZE.keys) {
+                runCatching { Entity.loadSuspend("asset://panels/panel_$id.glb") }
+                    .onSuccess { frames[id] = it }
+                    .onFailure { android.util.Log.w("LubanStage", "frame $id: ${it.message}") }
+            }
             val assets = Assets()
             for (name in MODELS) {
                 runCatching { Entity.loadSuspend("asset://models/$name.glb") }
@@ -288,7 +307,7 @@ fun WorkshopStage() {
             b.placeInRoom(Game.benchHeight)
             content.addEntity(b.root)
             b.attachCoach(attachments.entity(LABEL_FIRST))
-            attachPanels(b, attachments)
+            attachPanels(b, attachments, frames)
             Game.sound = Sound(b.root).also { it.load() }
             synchronized(Game.lock) { b.show(Game.workshop) }
             bench = b
@@ -299,9 +318,20 @@ fun WorkshopStage() {
                 can
             }
             AutoPilot.turner = { deg -> b.turnBy(deg) }
+            Game.demo = {
+                val can = canStep(b)
+                if (can) autoStep(b)
+                can
+            }
+            var watchClock = 0.0
 
             subscription[0] = content.subscribe(SceneEvents.Update::class.java) { e ->
                 synchronized(Game.lock) { b.frame(e.deltaTime.toDouble(), Game.workshop) }
+                watchClock += e.deltaTime.toDouble()
+                if (watchClock > 1.0) {
+                    watchClock = 0.0
+                    main.post { Game.watch() }
+                }
                 // A pinched hand never holds perfectly still, so a drag that has been silent this
                 // long has lost its end (hand tracking dropped the release): treat it as let go.
                 if (b.dragging && lastInput[0] > 0 && SystemClock.uptimeMillis() - lastInput[0] > STUCK_DRAG_MS) {
@@ -330,12 +360,26 @@ private val MODELS = listOf(
 )
 
 /** Scene panels, placed in the bench frame: the title card over the back of the bench, the relic and result cards to its right, the menu at its front left. */
-private fun attachPanels(b: Bench, attachments: com.pico.spatial.ui.foundation.content.SpatialViewAttachments) {
-    if (!b.hasPanel(PANEL_INTRO)) b.attachPanel(PANEL_INTRO, attachments.entity(PANEL_INTRO), Vector3(0f, 0.5f, -0.2f))
+private fun attachPanels(b: Bench, attachments: com.pico.spatial.ui.foundation.content.SpatialViewAttachments, frames: Map<String, Entity>) {
+    fun put(id: String, pos: Vector3, pitch: Float = 0f) {
+        if (b.hasPanel(id)) return
+        val e = attachments.entity(id) ?: return
+        b.attachPanel(id, e, pos)
+        if (pitch != 0f) e.transform().eulerAngles = EulerAngles(pitch, 0f, 0f)
+        // The frame sits just behind the Compose text.
+        frames[id]?.let { f ->
+            f.setPos(Vector3(0f, 0f, -0.006f))
+            e.addChild(f)
+            if (id == PANEL_MENU) f.enabled = Game.menuOpen
+        }
+    }
+    put(PANEL_INTRO, Vector3(0f, 0.5f, -0.2f))
     // The relic and result cards stand to the right, so the relic itself stays in view.
-    if (!b.hasPanel(PANEL_RESULT)) b.attachPanel(PANEL_RESULT, attachments.entity(PANEL_RESULT), Vector3(0.4f, 0.28f, -0.08f))
-    if (!b.hasPanel(PANEL_RELIC)) b.attachPanel(PANEL_RELIC, attachments.entity(PANEL_RELIC), Vector3(0.4f, 0.28f, -0.08f))
-    if (!b.hasPanel(PANEL_MENU)) b.attachPanel(PANEL_MENU, attachments.entity(PANEL_MENU), MENU_POS)
+    put(PANEL_RESULT, Vector3(0.42f, 0.38f, -0.1f))
+    put(PANEL_RELIC, Vector3(0.42f, 0.38f, -0.1f))
+    put(PANEL_MENU, MENU_POS)
+    // The help panel lies low at the front right, tilted up towards the player like a note on the bench.
+    put(PANEL_HELP, Vector3(0.4f, 0.1f, 0.16f), -35f)
 }
 
 /** The menu tab at the bench's front left, and where the unfolded menu stands (its middle) so all of it is above the top. */

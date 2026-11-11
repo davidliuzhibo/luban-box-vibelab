@@ -13,6 +13,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,6 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
+import kotlin.math.roundToInt
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -41,6 +48,16 @@ const val PANEL_INTRO = "intro"
 const val PANEL_RESULT = "result"
 const val PANEL_MENU = "menu"
 const val PANEL_RELIC = "relic_card"
+const val PANEL_HELP = "help"
+
+/** Inner size (w, h in meters) of each rosewood frame in assets/panels/panel_<id>.glb; the text must fit inside. */
+val FRAME_SIZE = mapOf(
+    PANEL_INTRO to (0.54f to 0.44f),
+    PANEL_RESULT to (0.48f to 0.4f),
+    PANEL_RELIC to (0.42f to 0.32f),
+    PANEL_MENU to (0.42f to 0.5f),
+    PANEL_HELP to (0.36f to 0.22f),
+)
 
 /** Text height in the scene, so the labels read at arm's length to about 1.5 m. */
 private const val TEXT_METERS = 0.022f
@@ -104,113 +121,174 @@ private fun PinchIcon(accent: Color, size: Dp) {
 /** First time on the bench: how to handle a relic at all. */
 @Composable
 fun FirstLabel(converter: PhysicalLengthConverter) =
-    CoachLabel("用拇指和食指捏住一根木条，拖动它", Color(0xFFE9C46A), converter)
+    CoachLabel("用拇指和食指捏住一块木板，拖动它", Color(0xFFE9C46A), converter)
 
 /**
- * The title card, floating over the back of the bench (the 匠人手记 window sits wherever the
- * system puts it, often too far to read): what the game is, how to handle a relic, and a
- * pinchable start.
+ * Text on the dark lacquer inside a carved rosewood frame (the frame model is added by the stage).
+ * The frame's size is fixed: content taller than it is scaled down to fit, so nothing slips under the edge.
  */
 @Composable
-fun IntroPanel(converter: PhysicalLengthConverter) {
-    fun m(meters: Float): Dp = converter.lengthToDp(meters, LengthUnit.Meters)
-    fun size(meters: Float) = m(meters).value.sp
-    @Suppress("UNUSED_VARIABLE") val pv = Game.progressVersion
-    val fresh = Relics.all.none { Game.workshop.progress.solved(it.id) }
-    val shape = RoundedCornerShape(m(0.025f))
-    Column(
-        Modifier.width(m(0.52f)).clip(shape).background(Panel).border(m(0.002f), Gold, shape)
-            .padding(horizontal = m(0.03f), vertical = m(0.024f)),
-        verticalArrangement = Arrangement.spacedBy(m(0.012f)),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text("鲁班机关匣", fontSize = size(0.045f), color = Gold)
-        Text("木 作 · 铜 作 · 天 工", fontSize = size(0.02f), color = Dim)
-        Text("工作台上摆着一件件古代机关，找出打开它们的方法。", fontSize = size(0.022f), color = LabelInk)
-        Column(verticalArrangement = Arrangement.spacedBy(m(0.006f))) {
-            Text("怎么玩：", fontSize = size(0.022f), color = Gold)
-            Text("① 用拇指和食指捏住木条、木块或铜环（两根手指捏，不要整只手去抓）", fontSize = size(0.02f), color = LabelInk)
-            Text("② 保持捏住，推、拉、拨、拖到位置", fontSize = size(0.02f), color = LabelInk)
-            Text("③ 两根手指张开，就放下了", fontSize = size(0.02f), color = LabelInk)
-            Text("卡住了可以捏台面左边的「菜单」要提示；进度自动保存", fontSize = size(0.017f), color = Dim)
+private fun Framed(c: PhysicalLengthConverter, id: String, content: @Composable () -> Unit) {
+    fun m(meters: Float): Dp = c.lengthToDp(meters, LengthUnit.Meters)
+    val (w, h) = FRAME_SIZE.getValue(id)
+    Layout(
+        content = { Column(verticalArrangement = Arrangement.spacedBy(m(0.008f)), horizontalAlignment = Alignment.CenterHorizontally) { content() } },
+        modifier = Modifier.width(m(w)).height(m(h)).padding(horizontal = m(0.02f), vertical = m(0.012f)),
+    ) { measurables, constraints ->
+        val p = measurables[0].measure(constraints.copy(minWidth = constraints.maxWidth, minHeight = 0, maxHeight = Constraints.Infinity))
+        val k = if (p.height > constraints.maxHeight) constraints.maxHeight.toFloat() / p.height else 1f
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            val x = ((constraints.maxWidth - p.width * k) / 2f).roundToInt().coerceAtLeast(0)
+            val y = ((constraints.maxHeight - p.height * k) / 2f).roundToInt().coerceAtLeast(0)
+            p.placeWithLayer(x, y) { scaleX = k; scaleY = k; transformOrigin = TransformOrigin(0f, 0f) }
         }
-        CoachLabel(if (fresh) "捏一下这里：开始" else "捏一下这里：继续", Gold, converter) { Game.startWork() }
-        Text(DISCLAIMER, fontSize = size(0.0125f), color = Dim)
     }
 }
 
-/** The relic just opened: the token, then "next relic" and "again" as big pinchable lines. */
+private val ButtonBg = Color(0xFF3A2414)
+private val ButtonLine = Color(0xFF9A7A44)
+private val GoldInk = Color(0xFF2A1C0C)
+
+/** The step that moves the game on: the one gold button on a panel. */
+@Composable
+private fun GoldButton(c: PhysicalLengthConverter, text: String, glow: Boolean = false, onClick: () -> Unit) {
+    fun m(meters: Float): Dp = c.lengthToDp(meters, LengthUnit.Meters)
+    val pulse by rememberInfiniteTransition(label = "glow").animateFloat(
+        0f, 1f, infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Reverse), label = "glowT",
+    )
+    val shape = RoundedCornerShape(m(0.012f))
+    val edge = if (glow) Color(0xFFFFF4C0).copy(alpha = 0.5f + 0.5f * pulse) else Color(0xFFFFF0C8)
+    Text(
+        text,
+        Modifier.clip(shape).background(Gold).border(m(if (glow) 0.004f else 0.002f), edge, shape).clickable { onClick() }
+            .padding(horizontal = m(0.028f), vertical = m(0.013f)),
+        fontSize = m(0.024f).value.sp,
+        color = GoldInk,
+    )
+}
+
+@Composable
+private fun PlainButton(c: PhysicalLengthConverter, text: String, color: Color = LabelInk, onClick: () -> Unit) {
+    fun m(meters: Float): Dp = c.lengthToDp(meters, LengthUnit.Meters)
+    val shape = RoundedCornerShape(m(0.01f))
+    Text(
+        text,
+        Modifier.clip(shape).background(ButtonBg).border(m(0.0015f), ButtonLine, shape).clickable { onClick() }
+            .padding(horizontal = m(0.016f), vertical = m(0.01f)),
+        fontSize = m(0.019f).value.sp,
+        color = color,
+    )
+}
+
+@Composable
+private fun Line(c: PhysicalLengthConverter, text: String, size: Float = 0.019f, color: Color = LabelInk) =
+    Text(text, Modifier.fillMaxWidth(), fontSize = c.lengthToDp(size, LengthUnit.Meters).value.sp, color = color, textAlign = TextAlign.Center)
+
+/** 「第 3 / 12 件」 */
+private fun countOf(id: String) = "第 ${Relics.all.indexOfFirst { it.id == id } + 1} / ${Relics.all.size} 件"
+
+/** The title card over the back of the bench: what the game is, how to handle a relic, and start. */
+@Composable
+fun IntroPanel(converter: PhysicalLengthConverter) {
+    @Suppress("UNUSED_VARIABLE") val pv = Game.progressVersion
+    val p = Game.workshop.progress
+    val done = Relics.all.count { p.solved(it.id) }
+    Framed(converter, PANEL_INTRO) {
+        Line(converter, "鲁班机关匣", 0.044f, Gold)
+        Line(converter, "木 作 · 铜 作 · 天 工　　共 ${Relics.all.size} 件器物", 0.018f, Dim)
+        Line(converter, "工作台上摆着一件件古代机关，找出打开它们的方法。")
+        Line(converter, "① 用拇指和食指捏住木板、木块或铜环（两根手指捏，不要整只手抓）", 0.017f)
+        Line(converter, "② 保持捏住，推、拉、拨、拖到位置；两根手指张开就放下了", 0.017f)
+        Line(converter, "卡住了，台面右前方有「提示」「演示一步」「跳过这件」。", 0.017f, Dim)
+        GoldButton(converter, if (done == 0) "开始第 1 件" else "继续（已完成 $done / ${Relics.all.size}）") { Game.startWork() }
+        Line(converter, DISCLAIMER, 0.0115f, Dim)
+    }
+}
+
+/** The relic just opened: the token, how it went, then "next relic" as the one gold button. */
 @Composable
 fun ResultPanel(converter: PhysicalLengthConverter) {
-    fun m(meters: Float): Dp = converter.lengthToDp(meters, LengthUnit.Meters)
-    fun size(meters: Float) = m(meters).value.sp
     @Suppress("UNUSED_VARIABLE") val pv = Game.progressVersion
     val relic = Relics.byId(Game.relicId)
     val next = Game.workshop.next()
-    val shape = RoundedCornerShape(m(0.025f))
-    Column(
-        Modifier.width(m(0.46f)).clip(shape).background(Panel).border(m(0.002f), Gold, shape)
-            .padding(horizontal = m(0.026f), vertical = m(0.02f)),
-        verticalArrangement = Arrangement.spacedBy(m(0.012f)),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text("打开了！得到「${relic.token}」", fontSize = size(0.032f), color = Gold)
-        if (Game.workshop.progress.chapterDone(relic.chapter)) {
+    val p = Game.workshop.progress
+    Framed(converter, PANEL_RESULT) {
+        Line(converter, "打开了！得到「${relic.token}」", 0.03f, Gold)
+        Line(converter, if (p.unaided(relic.id)) "没看一次提示：巧手！" else "用了 ${Game.hintsUsed} 次提示。不看提示再开一次，就是「巧手」。", 0.018f, Dim)
+        if (p.chapterDone(relic.chapter)) {
             val reward = Relics.chapterRewards[relic.chapter]
-            Text(if (reward != null) "${Relics.chapterTitles[relic.chapter]}完成，集齐了「$reward」。" else "总机关匣打开了。全部完成，谢谢你，巧手的匠人。",
-                fontSize = size(0.02f), color = LabelInk)
+            Line(converter, if (reward != null) "${Relics.chapterTitles[relic.chapter]}完成，集齐了「$reward」。" else "总机关匣打开了。全部完成，谢谢你，巧手的匠人。")
         }
-        if (next != null) CoachLabel("下一件：${next.title} →", Gold, converter) { Game.nextRelic() }
-        CoachLabel("再来一次", Dim, converter) { Game.restart() }
-        Text("它的来历已经写进营造图谱（菜单里打开）。", fontSize = size(0.016f), color = Dim)
+        if (next != null) GoldButton(converter, "下一件：${next.title} →") { Game.nextRelic() }
+        Row(horizontalArrangement = Arrangement.spacedBy(converter.lengthToDp(0.012f, LengthUnit.Meters))) {
+            PlainButton(converter, if (Game.speaking == "story_${relic.id}") "停止讲解" else "听讲解") {
+                if (Game.speaking == "story_${relic.id}") Game.stopVoice() else Game.speak("story_${relic.id}")
+            }
+            PlainButton(converter, "再来一次") { Game.restart() }
+        }
+        val skipped = Relics.all.filter { p.skipped(it.id) }
+        if (skipped.isNotEmpty()) Line(converter, "跳过的：${skipped.joinToString("、") { it.title }}（营造图谱里可以回去做）", 0.015f, Dim)
     }
 }
 
 /**
  * The way back to everything once the windows are closed: a small "menu" tab on the bench that
- * unfolds into a hint, the two windows, starting over and quitting.
+ * unfolds into the relic's card, the two windows, starting over and quitting.
  */
 @Composable
 fun MenuPanel(converter: PhysicalLengthConverter, openNotes: () -> Unit, openAtlas: () -> Unit, quit: () -> Unit, faceMe: () -> Unit) {
-    fun m(meters: Float): Dp = converter.lengthToDp(meters, LengthUnit.Meters)
     if (!Game.menuOpen) {
         CoachLabel("菜单", Dim, converter) { Game.menuOpen = true }
         return
     }
-    val shape = RoundedCornerShape(m(0.02f))
-    Column(
-        Modifier.width(m(0.42f)).clip(shape).background(Panel).border(m(0.002f), Dim, shape).padding(m(0.016f)),
-        verticalArrangement = Arrangement.spacedBy(m(0.01f)),
-    ) {
-        CoachLabel(if (Game.hint == null) "给点提示" else "再具体一点", Gold, converter) { Game.askHint(); Game.menuOpen = false }
-        CoachLabel("这件器物的说明", Gold, converter) { Game.relicCardDismissed = false; Game.menuOpen = false }
-        CoachLabel("匠人手记：台高、环境、音乐", Gold, converter) { openNotes(); Game.menuOpen = false }
-        CoachLabel("营造图谱：选器物、看来历", Gold, converter) { openAtlas(); Game.menuOpen = false }
-        CoachLabel("工作台摆到我正前方", Gold, converter) { faceMe(); Game.menuOpen = false }
-        CoachLabel("从头再来", Dim, converter) { Game.restart(); Game.menuOpen = false }
-        Text("进度自动保存：每打开一件都会记下来。", fontSize = m(0.016f).value.sp, color = Dim)
-        CoachLabel("退出游戏", Color(0xFFE0663F), converter) { quit() }
-        CoachLabel("收起菜单", Dim, converter) { Game.menuOpen = false }
+    Framed(converter, PANEL_MENU) {
+        Line(converter, "菜单　${countOf(Game.relicId)}", 0.024f, Gold)
+        PlainButton(converter, "这件器物的说明") { Game.relicCardDismissed = false; Game.menuOpen = false }
+        PlainButton(converter, "营造图谱：选器物、看来历") { openAtlas(); Game.menuOpen = false }
+        PlainButton(converter, "匠人手记：台高、环境、音乐") { openNotes(); Game.menuOpen = false }
+        PlainButton(converter, "工作台摆到我正前方") { faceMe(); Game.menuOpen = false }
+        PlainButton(converter, "从头再来这一件") { Game.restart(); Game.menuOpen = false }
+        PlainButton(converter, "退出游戏", Color(0xFFF08A6A)) { quit() }
+        GoldButton(converter, "返回") { Game.menuOpen = false }
+        Line(converter, "进度自动保存：每打开一件都会记下来。", 0.014f, Dim)
     }
 }
 
 /** The relic on the bench: its name, what opens it and how to handle it; until the first move. */
 @Composable
 fun RelicCard(converter: PhysicalLengthConverter) {
-    fun m(meters: Float): Dp = converter.lengthToDp(meters, LengthUnit.Meters)
-    fun size(meters: Float) = m(meters).value.sp
     @Suppress("UNUSED_VARIABLE") val pv = Game.progressVersion
     val relic = Relics.byId(Game.relicId)
     val round = if (relic.rounds > 1) "　第 ${Game.round + 1} / ${relic.rounds} 局" else ""
-    val shape = RoundedCornerShape(m(0.022f))
-    Column(
-        Modifier.width(m(0.38f)).clip(shape).background(Panel).border(m(0.002f), Gold, shape)
-            .padding(horizontal = m(0.022f), vertical = m(0.018f)),
-        verticalArrangement = Arrangement.spacedBy(m(0.008f)),
-    ) {
-        Text("${relic.title}$round", fontSize = size(0.028f), color = Gold)
-        Text(relic.goal, fontSize = size(0.018f), color = LabelInk)
-        Text(howTo(relic.id), fontSize = size(0.016f), color = Dim)
-        CoachLabel("知道了", Gold, converter) { Game.relicCardDismissed = true }
+    Framed(converter, PANEL_RELIC) {
+        Line(converter, "${relic.title}$round", 0.028f, Gold)
+        Line(converter, "${Relics.chapterTitles[relic.chapter]}　${countOf(relic.id)}", 0.015f, Dim)
+        Line(converter, relic.goal, 0.018f)
+        Line(converter, howTo(relic.id), 0.015f, Dim)
+        GoldButton(converter, "知道了") { Game.relicCardDismissed = true }
+    }
+}
+
+/**
+ * Always on the bench's front right while a relic is out: the hint ladder, a solver move, and
+ * skipping. When the player seems stuck, it says so and the hint button glows (no arrow appears
+ * until they ask).
+ */
+@Composable
+fun HelpPanel(converter: PhysicalLengthConverter) {
+    @Suppress("UNUSED_VARIABLE") val pv = Game.progressVersion
+    val ideaGiven = Game.hintsUsed > 0
+    Framed(converter, PANEL_HELP) {
+        Line(
+            converter,
+            Game.note ?: if (Game.offerHelp) "好像卡住了？要不要提示？" else "${Relics.byId(Game.relicId).title}　${countOf(Game.relicId)}",
+            if (Game.note != null) 0.016f else 0.019f,
+            if (Game.offerHelp && Game.note == null) Gold else LabelInk,
+        )
+        GoldButton(converter, if (!ideaGiven) "提示" else if (Game.hint == null) "再给提示" else "再具体一点", glow = Game.offerHelp) { Game.askHint() }
+        Row(horizontalArrangement = Arrangement.spacedBy(converter.lengthToDp(0.012f, LengthUnit.Meters))) {
+            if (ideaGiven) PlainButton(converter, "演示一步") { Game.demoStep() }
+            PlainButton(converter, "跳过这件", Dim) { Game.skip() }
+        }
     }
 }

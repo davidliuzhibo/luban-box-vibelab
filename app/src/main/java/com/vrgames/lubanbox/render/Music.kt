@@ -16,6 +16,12 @@ class Music(context: Context) {
     private var resumed = false
     private var prepared = false
 
+    /** Turns the music down under the narrator's voice. */
+    fun duck(on: Boolean) {
+        val v = if (on) VOLUME * 0.25f else VOLUME
+        runCatching { player?.setVolume(v, v) }
+    }
+
     var muted = false
         set(v) {
             field = v
