@@ -110,6 +110,8 @@ class Bench(private val assets: Assets) {
 
     fun hasPanel(id: String) = id in panels
 
+    fun panel(id: String): Entity? = panels[id]
+
     fun placePanel(id: String, pos: Vector3) {
         panels[id]?.setPos(pos)
     }

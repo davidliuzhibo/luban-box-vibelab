@@ -278,6 +278,11 @@ fun RelicCard(converter: PhysicalLengthConverter) {
 fun HelpPanel(converter: PhysicalLengthConverter) {
     @Suppress("UNUSED_VARIABLE") val pv = Game.progressVersion
     val ideaGiven = Game.hintsUsed > 0
+    if (Game.helpFolded || Game.partHeld) {
+        // Folded: one small tab; pinch to unfold (held parts unfold it again when let go).
+        PlainButton(converter, if (Game.offerHelp) "帮助（卡住了？）" else "帮助 ▸") { Game.helpFolded = false }
+        return
+    }
     Framed(converter, PANEL_HELP) {
         Line(
             converter,
@@ -289,6 +294,7 @@ fun HelpPanel(converter: PhysicalLengthConverter) {
         Row(horizontalArrangement = Arrangement.spacedBy(converter.lengthToDp(0.012f, LengthUnit.Meters))) {
             if (ideaGiven) PlainButton(converter, "演示一步") { Game.demoStep() }
             PlainButton(converter, "跳过这件", Dim) { Game.skip() }
+            PlainButton(converter, "收起", Dim) { Game.helpFolded = true }
         }
     }
 }

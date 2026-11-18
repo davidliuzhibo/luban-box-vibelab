@@ -31,6 +31,7 @@ import com.vrgames.lubanbox.game.Game
  */
 @Composable
 fun AtlasWindow() {
+    com.vrgames.lubanbox.platform.AppExit.CloseWithStage(com.vrgames.lubanbox.ATLAS_ID)
     @Suppress("UNUSED_VARIABLE") val pv = Game.progressVersion
     val progress = Game.workshop.progress
     var shown by remember { mutableStateOf<String?>(null) }

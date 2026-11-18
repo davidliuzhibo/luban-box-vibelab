@@ -100,7 +100,9 @@ fun WorkshopStage() {
         }
     }
 
+    com.vrgames.lubanbox.platform.AppExit.TrackStage()
     DisposableEffect(Unit) {
+        com.vrgames.lubanbox.platform.AppExit.stageAlive = true
         // The windows wait in the bench menu: the title, relic and result cards cover a run, and
         // two windows open at once crowd the view.
         Game.init(context)
@@ -116,8 +118,9 @@ fun WorkshopStage() {
             AutoPilot.turner = null
             Game.demo = null
             Game.stopVoice()
-            navigator.closeWindowContainer(ATLAS_ID)
-            navigator.closeWindowContainer(NOTES_ID)
+            com.vrgames.lubanbox.platform.AppExit.stageAlive = false
+            runCatching { navigator.closeWindowContainer(ATLAS_ID) }
+            runCatching { navigator.closeWindowContainer(NOTES_ID) }
         }
     }
 
@@ -185,6 +188,12 @@ fun WorkshopStage() {
         b.showPanel(PANEL_HELP, !Game.showTitle && Game.opened != Game.relicId)
     }
     // The open menu is about half a meter tall and hangs from its middle: lift it clear of the bench top.
+    // Folded, the help panel is a small tab without its frame; it folds by itself while a part is held.
+    LaunchedEffect(Game.helpFolded, Game.partHeld, bench) {
+        val folded = Game.helpFolded || Game.partHeld
+        bench?.placePanel(PANEL_HELP, if (folded) HELP_FOLDED_POS else HELP_POS)
+        frames[PANEL_HELP]?.enabled = !folded
+    }
     LaunchedEffect(Game.menuOpen, bench) {
         bench?.placePanel(PANEL_MENU, if (Game.menuOpen) MENU_OPEN_POS else MENU_POS)
         // The folded menu is a small tab without a frame.
@@ -217,6 +226,7 @@ fun WorkshopStage() {
                     if (b.dragging) release(b, "restart")
                     // The title card asks to start first.
                     val g = synchronized(Game.lock) { b.grabOf(value.targetEntity)?.takeIf { !Game.showTitle }?.also { b.begin(it) } }
+                    if (g != null) main.post { Game.partHeld = true }
                     Log.i(INPUT_TAG, "start ${g ?: "none"} target=${value.targetEntity?.getName()} kind=${value.interactionKind} pinchL=$l pinchR=$r hand=${pinch[0]}")
                 },
                 onDragEnd = { release(bench, "end") },
@@ -254,7 +264,7 @@ fun WorkshopStage() {
                     converter,
                     openNotes = { navigator.openWindowContainer(NOTES_ID) },
                     openAtlas = { navigator.openWindowContainer(ATLAS_ID) },
-                    quit = { context.findActivity()?.finishAndRemoveTask() },
+                    quit = { com.vrgames.lubanbox.platform.AppExit.finishAll(context) },
                     faceMe = { facePlayer() },
                 )
             }
@@ -375,12 +385,31 @@ private fun attachPanels(b: Bench, attachments: com.pico.spatial.ui.foundation.c
     }
     put(PANEL_INTRO, Vector3(0f, 0.5f, -0.2f))
     // The relic and result cards stand to the right, so the relic itself stays in view.
-    put(PANEL_RESULT, Vector3(0.42f, 0.38f, -0.1f))
-    put(PANEL_RELIC, Vector3(0.42f, 0.38f, -0.1f))
+    // v0.9.1 (device test): 5 cm further right, and turned 15° toward the player (it was only slid right of the
+    // player's line of sight, so its face looked away).
+    put(PANEL_RESULT, CARD_POS)
+    put(PANEL_RELIC, CARD_POS)
+    b.panel(PANEL_RESULT)?.transform()?.eulerAngles = EulerAngles(0f, CARD_YAW, 0f)
+    b.panel(PANEL_RELIC)?.transform()?.eulerAngles = EulerAngles(0f, CARD_YAW, 0f)
     put(PANEL_MENU, MENU_POS)
-    // The help panel lies low at the front right, tilted up towards the player like a note on the bench.
-    put(PANEL_HELP, Vector3(0.4f, 0.1f, 0.16f), -35f)
+    // The help panel stands off the bench's right end, beyond the parts laid out there (they reach x ≈ 0.5),
+    // turned toward the player (v0.9: lying at the front right it covered the parts while assembling).
+    put(PANEL_HELP, HELP_POS, -12f)
+    b.panel(PANEL_HELP)?.transform()?.eulerAngles = EulerAngles(-12f, -30f, 0f)
 }
+
+/** The relic and result cards' place (right of the turntable) and their turn toward the player. */
+private val CARD_POS = Vector3(0.47f, 0.38f, -0.1f)
+private const val CARD_YAW = -15f
+
+/**
+ * The help panel's place: right of the parts' tray, a little above the top, and its folded tab's (lower, nearer).
+ * v0.9.1: 20 cm further right, 12 cm nearer and 4 cm lower than v0.9. From the seat (0.75 m in front of the bench) its
+ * left edge, carved border included, is seen about 3° right of the turned relic card's right edge instead of behind it
+ * (checked on the emulator from the seat: at 16 cm the two borders still touched).
+ */
+private val HELP_POS = Vector3(0.86f, 0.16f, 0.14f)
+private val HELP_FOLDED_POS = Vector3(0.66f, 0.08f, 0.14f)
 
 /** The menu tab at the bench's front left, and where the unfolded menu stands (its middle) so all of it is above the top. */
 private val MENU_POS = Vector3(-0.42f, 0.07f, 0.12f)
@@ -415,6 +444,7 @@ private fun android.content.Context.findActivity(): android.app.Activity? {
 }
 
 private fun release(b: Bench?, why: String) {
+    Handler(Looper.getMainLooper()).post { Game.partHeld = false }
     if (b == null) return
     val r = synchronized(Game.lock) { b.end() }
     Log.i(INPUT_TAG, "$why -> ${r::class.simpleName}")

@@ -35,6 +35,7 @@ const val DISCLAIMER = "本作品中的器物为复原演绎，史料只陈述�
 /** 匠人手记: the title card, then the relic at hand, hints, and bench settings. */
 @Composable
 fun NotesWindow() {
+    com.vrgames.lubanbox.platform.AppExit.CloseWithStage(com.vrgames.lubanbox.NOTES_ID)
     if (Game.showTitle) TitleCard() else Notes()
 }
 

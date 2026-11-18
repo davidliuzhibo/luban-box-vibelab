@@ -67,6 +67,9 @@ object Game {
 
     /** The bench has seen the player struggle (pushes that would not go, or a long time without progress): the help panel offers a hint. */
     var offerHelp by mutableStateOf(false); private set
+    /** v0.9 (PICO 1116: the right panel covered parts while assembling): the help panel folded to a tab, by the player; and folded by itself while a loose part is held. */
+    var helpFolded by mutableStateOf(false)
+    var partHeld by mutableStateOf(false)
     /** A voice clip is playing (a relic's story or a hint). */
     var speaking by mutableStateOf<String?>(null); private set
     /** Set by the stage: makes one solver move on the bench (animated); false when none is left. */
