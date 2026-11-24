@@ -36,6 +36,9 @@ class Bench(private val assets: Assets) {
     var rotary: RotaryView? = null; private set
     var build: AssemblyView? = null; private set
     private var relicId = ""
+    /** The relic (and round) the bench shows now; it is rebuilt a little after the workshop loads one. */
+    val shown get() = relicId to shownRound
+    private var shownRound = 0
 
     /** Turntable angle (degrees about +y). */
     var yaw = 0.0; private set
@@ -156,19 +159,35 @@ class Bench(private val assets: Assets) {
         rotary = null
         build = null
         relicId = ws.relic.id
+        shownRound = ws.round
         solvedFor = if (ws.solved) 0.0 else -1.0
         val sc = Scene.of(relicId, assets)
         scene = sc
         stage.setPos(Vector3(0f, TURNTABLE_H + sc.lift, 0f))
         sc.props(c)
-        ws.slide?.let { p -> slide = SlideView(p, c, sc.slideLooks(p)).also { it.snapAll() } }
+        ws.slide?.let { p -> slide = SlideView(p, c, sc.slideLooks(p), sc.exits(p)).also { it.snapAll(); it.onExit = { path, cl -> onExit?.invoke(path, cl) } } }
         ws.rotary?.let { p -> rotary = RotaryView(p, c, sc.dialLooks(p)).also { it.snapAll() } }
         ws.assembly?.let { a ->
             val floor = -(TURNTABLE_H + sc.lift).toDouble()
-            build = AssemblyView(a, c, assets, sc::partVisual, { t -> hitBox(sc.partVisual(t)) }, sc.tray(a), floor).also { it.snapAll() }
+            build = AssemblyView(a, c, assets, sc::partVisual, { t -> hitBox(sc.partVisual(t)) }, sc.tray(a), floor, sc.frontOpening, sc::frontShift,
+                // v0.10.1: what a held part rides over besides the other parts: the build's fixed parts and the turntable.
+                com.vrgames.lubanbox.core.BuildProps.boxes(relicId) + com.vrgames.lubanbox.core.box(-TURNTABLE_R.toDouble(), TURNTABLE_R.toDouble(), floor, -sc.lift.toDouble(), -TURNTABLE_R.toDouble(), TURNTABLE_R.toDouble()),
+            ).also { it.snapAll() }
         }
         if (!sc.turns(false)) turnTo(0.0)
         showTokens(ws)
+        showTitle(titleShown)
+    }
+
+    private var titleShown = false
+
+    /**
+     * The title card stands over the back of the bench. v0.10: the 鲁班锁 now floats 0.45 m up and would stand in
+     * front of the card's text, so a relic that high waits out of sight until the card is put away.
+     */
+    fun showTitle(on: Boolean) {
+        titleShown = on
+        content?.let { c -> (!(on && (scene?.lift ?: 0f) > 0.3f)).let { if (c.enabled != it) c.enabled = it } }
     }
 
     private fun hitBox(e: Entity): Pair<Vector3, Vector3> = Scene.bounds(e).let { (size, center) ->
@@ -182,6 +201,7 @@ class Bench(private val assets: Assets) {
 
     fun showTokens(ws: Workshop) {
         tokens.getChildren().toList().forEach { tokens.removeChild(it); it.destroy(true) }
+        if (scene?.showsTokens == false) return
         Relics.all.forEachIndexed { k, r ->
             if (r.chapter > 3 || !ws.progress.solved(r.id)) return@forEachIndexed
             val t = assets.piece("token${k + 1}") ?: return@forEachIndexed
@@ -216,7 +236,8 @@ class Bench(private val assets: Assets) {
         val ok = when (g) {
             is Grab.Piece -> slide?.begin(g.i) ?: false
             is Grab.Dial -> rotary?.begin(g.i) ?: false
-            is Grab.Part -> build?.begin(g.i) ?: false
+            // v0.10.1: not while the scene is fitting a part in (the 被中香炉's rings turn to let it through).
+            is Grab.Part -> scene?.busy != true && (build?.begin(g.i) ?: false)
             Grab.Turntable -> true
         }
         grab = if (ok) g else null
@@ -259,9 +280,11 @@ class Bench(private val assets: Assets) {
         data object Nothing : Released
     }
 
-    fun end(): Released {
+    /** Lets go. [asTap]: the pinch barely moved a held part, so it turns instead of being put down. */
+    fun end(asTap: Boolean = false, turn: Boolean = true): Released {
         val g = grab ?: return Released.Nothing
         grab = null
+        if (asTap && g is Grab.Part) return build?.endAsTap(turn)?.let { Released.Dropped(it) } ?: Released.Nothing
         return when (g) {
             is Grab.Piece -> slide?.end()?.let { Released.Moved(it) } ?: Released.Nothing
             is Grab.Dial -> {
@@ -275,6 +298,25 @@ class Bench(private val assets: Assets) {
 
     val dragging get() = grab != null
 
+    /** A burr stick is on its way out: nothing else moves until it lies down. */
+    val busy get() = slide?.busy == true || scene?.busy == true
+
+    /** Called for each stick that comes out of the lock: its way and its nearest approach (for the log). */
+    var onExit: ((com.vrgames.lubanbox.core.ExitPath, com.vrgames.lubanbox.core.BurrExit.Clearance) -> Unit)? = null
+
+    /** The part in hand, if a 斗拱 part is held. */
+    val heldPart get() = (grab as? Grab.Part)?.i
+
+    /** How far the hand has strayed while holding a part (a tap barely moves it). */
+    val heldTravel get() = build?.handTravel ?: 0.0
+
+    /** A short pinch (tap) on loose 斗拱 part [i]: it turns a quarter turn. Its new yaw, or null if it does not turn. */
+    fun turnPart(i: Int): Pair<Int, Double>? {
+        val v = build ?: return null
+        val y = v.turn(i) ?: return null
+        return i to y
+    }
+
     fun turnBy(deg: Double) = turnTo(yaw + deg)
 
     private fun turnTo(deg: Double) {
@@ -287,8 +329,17 @@ class Bench(private val assets: Assets) {
      * piece moved, -1 for a dial or a part, or null when there is nothing left to do.
      */
     fun autoStep(): Int? {
+        // A stick on its way out: wait for it (the solver's next move could cross its way).
+        if (busy) return -2
         slide?.let { v ->
             val m = v.puzzle.solution()?.firstOrNull() ?: return null
+            // v0.10.1: a piece still settling from the last step would be passed by this one mid-way: finish it first.
+            v.settleAll()
+            (v.puzzle as? com.vrgames.lubanbox.core.PuzzleBox)?.let { p ->
+                val from = p.positions()[m.piece]
+                val to = m.to * p.panels[m.piece].direction
+                android.util.Log.i("LubanGeo", "auto ${p.panels[m.piece].name} $from→$to worst overlap ${"%.2f".format(maxOf(0.0, p.sweepWorst(m.piece, from, to)) * 1000)} mm")
+            }
             v.puzzle.move(m.piece, m.axis, m.to)
             return m.piece
         }
@@ -320,6 +371,9 @@ class Bench(private val assets: Assets) {
         updateHint(dt)
     }
 
+    /** Test hooks: the hand movement in the room that moves [stage] in the relic's frame (the inverse of [drag]'s turn). */
+    fun roomDelta(stage: Vec3): Vec3 = turnY(turnY(stage, yaw), facing.toDouble())
+
     /** Hand movement in the room → the relic's frame (undoing the turntable's turn). */
     private fun toStage(d: Vec3): Vec3 = turnY(d, -yaw)
 
@@ -344,6 +398,7 @@ class Bench(private val assets: Assets) {
      * the target, a ghost of the piece where it goes (or the outline of the slot for a part).
      */
     fun showHint(h: Workshop.Hint?) {
+        slide?.stopNudge()
         hinted = h
         hintAge = 0.0
         ghost?.let { it.getParent()?.removeChild(it); it.destroy(true) }
@@ -358,7 +413,12 @@ class Bench(private val assets: Assets) {
         if (m != null && s != null) {
             val dir = unit(m.axis) * (if (m.to > s.puzzle.offset(m.piece, m.axis)) 1.0 else -1.0)
             marker.transform().quaternion = quatFromY(dir)
-            if (h.showTarget) {
+            if (s.exits != null) {
+                // v0.10 (PICO 2026-11-23): no ghost copy for the burr (a full-size stick drawn through the others
+                // misled). The stick itself nudges one step its way and back; asked again, it shows the whole move.
+                s.nudge(m.piece, m.axis, m.to, full = h.showTarget)
+                android.util.Log.i("LubanHint", "nudge ${m.piece} along ${m.axis} toward ${m.to} full=${h.showTarget} (no ghost)")
+            } else if (h.showTarget) {
                 s.visualCopy(m.piece)?.let { g ->
                     Assets.setMaterials(g, assets.ghost)
                     val holder = Entity().apply { addChild(g) }
@@ -394,7 +454,7 @@ class Bench(private val assets: Assets) {
         val r = rotary
         val at = when {
             // Above the piece (above the whole lock for a burr stick, whose middle is buried).
-            m != null && s != null -> s.center(m.piece).let { if (relicId == "lock") Vec3(it.x, 0.17, it.z) else it + Vec3(0.0, 0.07, 0.0) }
+            m != null && s != null -> s.center(m.piece).let { if (relicId == "lock") Vec3(it.x, (s.lockTop() ?: 0.1) + 0.07, it.z) else it + Vec3(0.0, 0.07, 0.0) }
             // In front of the dial.
             m != null && r != null -> r.pivot(m.piece) + Vec3(0.0, 0.0, 0.09)
             h.part != null -> build?.position(h.part)?.let { it + Vec3(0.0, 0.08, 0.0) }

@@ -199,7 +199,7 @@ fun IntroPanel(converter: PhysicalLengthConverter) {
         Line(converter, "工作台上摆着一件件古代机关，找出打开它们的方法。")
         Line(converter, "① 用拇指和食指捏住木板、木块或铜环（两根手指捏，不要整只手抓）", 0.017f)
         Line(converter, "② 保持捏住，推、拉、拨、拖到位置；两根手指张开就放下了", 0.017f)
-        Line(converter, "卡住了，台面右前方有「提示」「演示一步」「跳过这件」。", 0.017f, Dim)
+        Line(converter, "卡住了，台面右前方有「提示」和「跳过这件」；看过一次提示后，还会多出「演示一步」。", 0.017f, Dim)
         GoldButton(converter, if (done == 0) "开始第 1 件" else "继续（已完成 $done / ${Relics.all.size}）") { Game.startWork() }
         Line(converter, DISCLAIMER, 0.0115f, Dim)
     }

@@ -48,7 +48,9 @@ object Dougong {
         Slot("华栱", HUA_GONG, v(0.0, Y1, (HUA_GONG_BACK + HUA_GONG_FRONT) / 2), needs = setOf("栌斗")),
         // Crossed with 华栱 by halving: it drops in on top of it.
         Slot("泥道栱", NI_DAO_GONG, v(0.0, Y1, 0.0), needs = setOf("华栱")),
-        Slot("齐心斗", SAN_DOU, v(0.0, Y1_TOP, 0.0), yaw = 90.0, needs = setOf("泥道栱")),
+        // v0.10.1: 耍头 (along z) and 柱头枋 (along x) cross over this block, so it has a cross seat (a 交互斗). With a
+        // one-way 散斗 here, whichever ran across the seat sank 8.7 mm into its ears.
+        Slot("齐心斗", JIAO_HU_DOU, v(0.0, Y1_TOP, 0.0), needs = setOf("泥道栱")),
         Slot("左散斗", SAN_DOU, v(-0.09, Y1_TOP, 0.0), needs = setOf("泥道栱")),
         Slot("右散斗", SAN_DOU, v(0.09, Y1_TOP, 0.0), needs = setOf("泥道栱")),
         Slot("交互斗", JIAO_HU_DOU, v(0.0, Y1_TOP, FRONT_Z), needs = setOf("华栱")),
@@ -63,7 +65,50 @@ object Dougong {
     )
 
     /** Loose parts on the bench, in the order they are laid out. */
-    val parts = listOf(LU_DOU, HUA_GONG, NI_DAO_GONG, SAN_DOU, SAN_DOU, SAN_DOU, SAN_DOU, SAN_DOU, JIAO_HU_DOU, LING_GONG, SHUA_TOU, ZHU_TOU_FANG, LIAO_YAN_FANG)
+    val parts = listOf(LU_DOU, HUA_GONG, NI_DAO_GONG, SAN_DOU, SAN_DOU, SAN_DOU, SAN_DOU, JIAO_HU_DOU, JIAO_HU_DOU, LING_GONG, SHUA_TOU, ZHU_TOU_FANG, LIAO_YAN_FANG)
 
-    fun newAssembly() = Assembly(slots, parts)
+    /**
+     * v0.10: turns that leave a part looking the same, from the shapes in tools/make_dougong.py. 栌斗 and
+     * 交互斗 have a cross seat (any quarter turn; v0.10.1: the middle block 齐心斗 is one too); 散斗 a seat one way (half turns); 泥道栱, 令栱 and the two
+     * 枋 are the same end to end (half turns); 华栱 (its halving off-centre) and 耍头 (its beak) only one way.
+     */
+    val symmetry = mapOf(
+        LU_DOU to 90, JIAO_HU_DOU to 90, SAN_DOU to 180,
+        NI_DAO_GONG to 180, LING_GONG to 180, ZHU_TOU_FANG to 180, LIAO_YAN_FANG to 180,
+        HUA_GONG to 360, SHUA_TOU to 360,
+    )
+
+    fun newAssembly() = Assembly(slots, parts, symmetry)
+
+    /** Plan size of each part type lying at yaw 0 (x, z; meters), as tools/make_dougong.py models them. */
+    fun footprint(type: String): Pair<Double, Double> = when (type) {
+        LU_DOU -> 0.096 to 0.096
+        JIAO_HU_DOU -> 0.054 to 0.054
+        SAN_DOU -> 0.048 to 0.048
+        HUA_GONG -> 0.03 to (HUA_GONG_FRONT - HUA_GONG_BACK)
+        SHUA_TOU -> 0.03 to 0.2
+        NI_DAO_GONG -> 0.22 to 0.03
+        LING_GONG -> 0.2 to 0.03
+        else -> 0.24 to 0.03
+    }
+
+    /**
+     * Where the loose parts lie on the bench (in [parts] order): place (x, z in the relic's frame) and yaw.
+     * v0.10: the four long arms that go in crosswise (泥道栱, 令栱, 柱头枋, 撩檐枋) lie lengthwise, so each
+     * must be turned once, and each has room to turn where it lies: nothing else lies where it will
+     * point after the turn. The blocks stand in a row at the right end. Everything stays off the
+     * turntable (radius 0.2 m) and clear of the menu tab at the front left.
+     */
+    val tray: List<Pair<Vec3, Double>> = listOf(
+        v(-0.44, 0.0, -0.08) to 0.0, // 栌斗
+        v(-0.31, 0.0, 0.03) to 0.0, // 华栱
+        v(-0.36, 0.0, -0.17) to 90.0, // 泥道栱
+        v(0.44, 0.0, 0.05) to 0.0, v(0.44, 0.0, 0.12) to 0.0,
+        v(0.44, 0.0, 0.19) to 0.0, v(0.44, 0.0, 0.26) to 0.0, // 散斗 ×4
+        v(0.44, 0.0, -0.09) to 0.0, v(0.44, 0.0, -0.02) to 0.0, // 交互斗 ×2 (v0.10.1: one sits under the crossing at the middle)
+        v(0.245, 0.0, 0.18) to 90.0, // 令栱
+        v(0.31, 0.0, 0.025) to 0.0, // 耍头
+        v(0.36, 0.0, -0.17) to 90.0, // 柱头枋
+        v(-0.245, 0.0, 0.18) to 90.0, // 撩檐枋
+    )
 }

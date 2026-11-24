@@ -31,6 +31,12 @@ interface SlidePuzzle {
     /** Offsets piece [i] can reach along [axis] in one straight move from where it is now. */
     fun reach(i: Int, axis: Axis): IntRange
 
+    /**
+     * How far a drag may show piece [i] along [axis] (in steps, fractional): by default its [reach]. A mechanism
+     * whose shapes leave a little room short of the next step may say so; the piece settles back on a whole step.
+     */
+    fun span(i: Int, axis: Axis): ClosedFloatingPointRange<Double> = reach(i, axis).let { it.first.toDouble()..it.last.toDouble() }
+
     /** Slides piece [i] to [to] along [axis]; [to] must be in [reach]. */
     fun move(i: Int, axis: Axis, to: Int)
 

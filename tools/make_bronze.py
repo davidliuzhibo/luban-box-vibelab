@@ -96,27 +96,55 @@ objects.append(wk.join(parts, "wl_body"))
 wk.export(os.path.join(out, "wordlock.glb"), objects)
 
 # ---- 花旗锁 -------------------------------------------------------------------------------------
+# v0.10.1: the shapes match Bronze.padlockParts / padlockBodyBoxes, which the game collides: a real keyhole (round
+# hole for the shaft, slot under it for the bit) the key fits into, holes for the shackle's legs, a pocket for the
+# catch; the plate stands just proud of the face and the gilt 平安, and the ring hangs clear of both.
 wk.reset()
 m = mats()
+KEY_TIP, KEYHOLE_Y, KEYHOLE_R, FLOOR = 0.045, 0.05, 0.0042, -0.0155
+COVER_Z = 0.0254
+
+
+def cut_dark(ob, cutter):
+    """Cuts [cutter] out of [ob]; the new inner faces take the cutter's (dark) material."""
+    md = ob.modifiers.new("cut", "BOOLEAN")
+    md.operation = "DIFFERENCE"
+    md.object = cutter
+    md.solver = "EXACT"
+    md.material_mode = "TRANSFER"
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.modifier_apply(modifier="cut")
+    bpy.data.objects.remove(cutter)
+
+
 body = [
     wk.box("body", (0.1, 0.08, 0.04), (0, 0.04, 0), m["bronze"], bevel_width=0.006),
-    # Raised border on the front, and the keyhole (dark) where the cover hides it.
+    # Raised border and face on the front.
     wk.box("border", (0.086, 0.066, 0.002), (0, 0.04, 0.0205), m["brass"], bevel_width=0.0008),
     wk.box("face", (0.08, 0.06, 0.002), (0, 0.04, 0.0215), m["bronze"], bevel_width=0.0005),
-    wk.box("keyhole", (0.008, 0.016, 0.002), (0, 0.05, 0.0222), m["dark"], bevel_width=0),
-    wk.box("keyhole_bar", (0.016, 0.004, 0.002), (0, 0.055, 0.0222), m["dark"], bevel_width=0),
     wk.text_mesh("words", "平安", 0.016, (0, 0.022, 0.0228), facing="+z", mat=m["gilt"]),
 ]
-objects = [wk.join(body, "pl_body")]
+lock_body = wk.join(body, "pl_body")
+depth = 0.03 - FLOOR
+cutters = [
+    wk.cylinder("keyhole", KEYHOLE_R, depth, (0, KEYHOLE_Y, FLOOR + depth / 2), m["dark"], axis="z", verts=32),
+    wk.box("keyslot", (0.004, KEYHOLE_Y - 0.0378, depth), (0, (KEYHOLE_Y + 0.0378) / 2, FLOOR + depth / 2), m["dark"], bevel_width=0),
+    wk.cylinder("hole_l", 0.0052, 0.031, (-0.035, 0.0745, 0), m["dark"], verts=24),
+    wk.cylinder("hole_r", 0.0052, 0.031, (0.035, 0.0745, 0), m["dark"], verts=24),
+    wk.box("pocket", (0.0145, 0.0206, 0.0166), (0.05275, 0.04, 0), m["dark"], bevel_width=0),
+]
+for c in cutters:
+    cut_dark(lock_body, c)
+objects = [lock_body]
 cover = [
-    wk.box("cover", (0.03, 0.03, 0.004), (0, 0.05, 0.024), m["gilt"], bevel_width=0.001),
-    wk.torus("cover_ring", 0.009, 0.0012, (0, 0.05, 0.0265), m["brass"], axis="z", segments=32),
+    wk.box("cover", (0.03, 0.03, 0.004), (0, 0.05, COVER_Z), m["gilt"], bevel_width=0.001),
+    wk.torus("cover_ring", 0.009, 0.0012, (0, 0.05, COVER_Z + 0.0025), m["brass"], axis="z", segments=32),
 ]
 objects.append(wk.join(cover, "pl_0"))
 key = [
-    wk.cylinder("shaft", 0.0035, 0.06, (0, 0.05, 0.07), m["brass"], axis="z", verts=16),
-    wk.torus("bow", 0.009, 0.0025, (0, 0.05, 0.108), m["brass"], axis="x", segments=32),
-    wk.box("bit", (0.003, 0.016, 0.012), (0, 0.047, 0.046), m["brass"], bevel_width=0.0005),
+    wk.cylinder("shaft", 0.0035, 0.06, (0, KEYHOLE_Y, KEY_TIP + 0.03), m["brass"], axis="z", verts=16),
+    wk.torus("bow", 0.009, 0.0025, (0, KEYHOLE_Y, KEY_TIP + 0.068), m["brass"], axis="x", segments=32),
+    wk.box("bit", (0.003, 0.011, 0.012), (0, 0.0445, KEY_TIP + 0.006), m["brass"], bevel_width=0.0005),
 ]
 objects.append(wk.join(key, "pl_1"))
 objects.append(wk.join([wk.box("catch", (0.006, 0.02, 0.016), (0.053, 0.04, 0), m["gilt"], bevel_width=0.001)], "pl_2"))
@@ -126,7 +154,7 @@ shackle = [
     wk.tube("top", wk.arc((0, 0.135, 0), 0.035, 0, 180, plane="xy", n=24), 0.005, m["brass"]),
 ]
 objects.append(wk.join(shackle, "pl_3"))
-objects.append(wk.join([wk.torus("ring", 0.012, 0.0022, (-0.035, 0.012, 0.024), m["brass"], axis="z", segments=40)], "pl_4"))
+objects.append(wk.join([wk.torus("ring", 0.012, 0.0022, (-0.035, 0.026, 0.0255), m["brass"], axis="z", segments=40)], "pl_4"))
 wk.export(os.path.join(out, "padlock.glb"), objects)
 
 # ---- 被中香炉 -----------------------------------------------------------------------------------
@@ -152,8 +180,8 @@ def lattice(name, lower):
         rods.append(rod)
     if not lower:
         rods.append(wk.sphere("knob", 0.008, (0, 2 * R + 0.004, 0), m["gilt"], segments=16))
-    else:
-        rods.append(wk.cylinder("foot", 0.022, 0.006, (0, 0.003, 0), m["gilt"], verts=32))
+    # v0.10.1: no foot under the lower half: the ball rolls in its cradle once built, and the foot's rim swept 2.4 mm
+    # into the cradle.
     ob = wk.join(rods, name)
     if not lower:
         wk.move(ob, (0, -R, 0))  # origin at the sphere's center
@@ -161,8 +189,10 @@ def lattice(name, lower):
 
 
 objects = [lattice("cs_下半球", True), lattice("cs_上半球", False)]
+# v0.10.1: the outer ring stands in the x-y plane, so its pins (along x) leave its rim and reach the shell (it stood in
+# the y-z plane and the pins floated on its axis). At rest all three rings and the bowl line up, as a gimbal does.
 outer = [
-    wk.torus("ring", 0.058, 0.003, (0, 0, 0), m["gilt"], axis="x"),
+    wk.torus("ring", 0.058, 0.003, (0, 0, 0), m["gilt"], axis="z"),
     wk.cylinder("pin_l", 0.0028, 0.014, (-0.064, 0, 0), m["brass"], axis="x", verts=16),
     wk.cylinder("pin_r", 0.0028, 0.014, (0.064, 0, 0), m["brass"], axis="x", verts=16),
 ]
@@ -194,7 +224,8 @@ objects.append(wk.join(bowl_parts, "cs_香盂"))
 stand = [
     wk.cylinder("disc", 0.045, 0.008, (0, -0.026, 0), m["wood"], verts=48, bevel_width=0.0015),
     wk.cylinder("neck", 0.012, 0.02, (0, -0.012, 0), m["wood"], verts=32),
-    wk.torus("cradle", 0.024, 0.003, (0, 0.0, 0), m["brass"], axis="y", segments=48),
+    # The cradle 3 mm lower (v0.10.1): the ball's lowest ring sat 1 mm into it, and rolling it needs room.
+    wk.torus("cradle", 0.024, 0.003, (0, -0.003, 0), m["brass"], axis="y", segments=48),
 ]
 objects.append(wk.join(stand, "cs_stand"))
 wk.export(os.path.join(out, "censer.glb"), objects)

@@ -1,8 +1,8 @@
 # 鲁班机关匣
 
-PICO Vibe Lab 原作品版本更新。版本 0.9.1 / versionCode 11。Android 包名 `com.vrgames.lubanbox`。
+PICO Vibe Lab 原作品版本更新。版本 0.10.2 / versionCode 15。Android 包名 `com.vrgames.lubanbox`。
 
-变更内容见[更新说明](更新说明.md)，旧版说明作为历史记录保存在 docs/原工程说明.md。
+本版变更见[更新说明](更新说明.md)。正常构建使用仓库内已落盘的代码和素材，不需要模型生成服务。
 
 ## 构建
 
@@ -12,4 +12,6 @@ PICO Vibe Lab 原作品版本更新。版本 0.9.1 / versionCode 11。Android �
 ./gradlew :app:testDebugUnitTest :app:assembleRelease
 ```
 
-Windows 使用 gradlew.bat。运行代码、素材与测试位于 app/src。正式发布沿用原应用签名，外部签名配置可通过 VRGAMES_SIGNING 指定；凭据与密钥不在仓库中。
+Windows 使用 gradlew.bat。运行代码、资源和单元测试位于 app/src。发布需沿用原应用签名；外部签名可通过 VRGAMES_SIGNING 指定，无此配置时生成未签名 Release。签名凭据和生成服务密钥不包含在仓库中。
+
+本次只准备原作品版本更新，商店图标、海报和截图沿用。

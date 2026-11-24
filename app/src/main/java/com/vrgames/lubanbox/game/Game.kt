@@ -38,6 +38,8 @@ object Game {
     var opened by mutableStateOf<String?>(null); private set
     /** The current hint, shown on the bench and explained in the notes. */
     var hint by mutableStateOf<Workshop.Hint?>(null); private set
+    /** Bumps on every ask, so the bench shows a hint again even when it is the same as the last one. */
+    var hintAsked by mutableIntStateOf(0); private set
     /** A short line in the notes after something the player did (a part that does not fit yet...). */
     var note by mutableStateOf<String?>(null)
     var showTitle by mutableStateOf(true)
@@ -106,10 +108,11 @@ object Game {
         calm()
     }
 
-    fun select(id: String) {
+    /** Puts relic [id] on the bench (if it is open yet; [force]: test hook, regardless). */
+    fun select(id: String, force: Boolean = false) {
         synchronized(lock) {
             val r = Relics.byId(id)
-            if (!workshop.progress.open(r)) return
+            if (!force && !workshop.progress.open(r)) return
             workshop.load(id)
         }
         opened = null
@@ -167,7 +170,16 @@ object Game {
             Assembly.Refusal.WRONG_PART -> "这里放的不是它，看看「$slot」该用哪一件。"
             Assembly.Refusal.TAKEN -> "「$slot」已经装好了。"
             Assembly.Refusal.FITS_NOWHERE -> "这一件哪儿都装不上，它是多出来的。"
+            Assembly.Refusal.WRONG_ANGLE -> ANGLE_NOTE
         }
+        // The note is on the help panel: unfold it so the player sees why the part hopped back.
+        if (why == Assembly.Refusal.WRONG_ANGLE) helpFolded = false
+    }
+
+    /** A 斗拱 part was turned (a short pinch). Its 「方向不对」 note has done its job. */
+    fun partTurned() {
+        if (note == ANGLE_NOTE) note = null
+        lastProgressAt = SystemClock.uptimeMillis()
     }
 
     /**
@@ -185,7 +197,13 @@ object Game {
             return
         }
         hint = synchronized(lock) { workshop.hint() }
-        note = if (hint == null) "已经打开了。" else null
+        hintAsked++
+        note = if (hint == null) "已经打开了。" else synchronized(lock) {
+            // The 斗拱 part to place next lies the wrong way round: say how to turn it.
+            val h = hint
+            val a = workshop.assembly
+            if (h?.part != null && h.slot != null && a != null && !a.angleOk(h.part, h.slot)) "先轻捏一下发光箭头下的「${a.parts[h.part]}」（捏一下就松开，不要拖），把它转个方向，再装上去。" else null
+        }
         refresh()
     }
 
@@ -309,6 +327,8 @@ object Game {
     }
 
     const val DEFAULT_BENCH_BELOW_EYE = 0.45f
+    /** v0.10: a 斗拱 part let go over its slot facing the wrong way. */
+    const val ANGLE_NOTE = "方向不对，轻捏一下转个方向再放。"
     private const val BUMPS_TO_OFFER = 5
     private const val BUMP_GAP_MS = 800L
     private const val IDLE_TO_OFFER_MS = 120_000L

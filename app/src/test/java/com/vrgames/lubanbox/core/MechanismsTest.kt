@@ -10,11 +10,16 @@ import org.junit.Test
 /** The box, the klotski rules and the 斗拱 build. */
 class MechanismsTest {
     @Test
-    fun boxOpensInSevenMovesAndOnlyInOrder() {
+    fun boxOpensInEightMovesAndOnlyInOrder() {
         val box = Boxes.newBox()
         val sol = box.solution()
         assertNotNull(sol)
-        assertEquals(7, sol!!.size)
+        // v0.10.1: held by its tabs and notches only; the left end now drops twice (8 moves, was 7 with hidden pins).
+        assertEquals(8, sol!!.size)
+        assertEquals(
+            listOf(Boxes.RIGHT to 1, Boxes.FRONT to 1, Boxes.LEFT to -1, Boxes.BACK to -1, Boxes.RIGHT to 2, Boxes.FRONT to 2, Boxes.LEFT to -2, Boxes.LID to -8),
+            sol.map { it.piece to it.to },
+        )
         // At the start only the right end panel moves.
         for (i in 0 until box.pieceCount) {
             val a = box.axes(i).single()
@@ -31,8 +36,10 @@ class MechanismsTest {
         box.move(Boxes.RIGHT, Axis.Y, 1)
         box.move(Boxes.FRONT, Axis.X, 1)
         assertEquals(1..1, box.reach(Boxes.RIGHT, Axis.Y))
-        // The left end slides down: negative along y.
-        assertEquals(-2..0, box.reach(Boxes.LEFT, Axis.Y))
+        // The front stops against the right end's tab after 1 cm (it may go back).
+        assertEquals(0..1, box.reach(Boxes.FRONT, Axis.X))
+        // The left end slides down (negative along y), 1 cm: its tongue then sits on the front panel's notch floor.
+        assertEquals(-1..0, box.reach(Boxes.LEFT, Axis.Y))
         box.move(Boxes.LEFT, Axis.Y, -1)
         assertEquals(1, box.positions()[Boxes.LEFT])
         box.reset()
@@ -88,6 +95,27 @@ class MechanismsTest {
         assertEquals(4, ws.progress.tokens.size)
         val back = Progress.parse(ws.progress.serialize())
         assertTrue(Relics.chapter(1).all { back.solved(it.id) && back.unaided(it.id) })
+    }
+
+    /**
+     * 2026-11-23 emulator run: the AutoPilot reported 华容道 again and again and never reached the 鲁班锁. That was the
+     * hook (it stepped the finished first board before the bench showed the second); the game itself goes on: three
+     * boards, each loading the next, the third opens it, and the 鲁班锁 is next and open.
+     */
+    @Test
+    fun finishingKlotskiOpensTheLockNext() {
+        val ws = Workshop()
+        for (id in listOf("box", "dougong")) ws.progress.record(id, hinted = false)
+        ws.load("klotski")
+        val outcomes = (0 until 3).map {
+            val p = ws.slide!!
+            for (m in p.solution()!!) p.move(m.piece, m.axis, m.to)
+            ws.afterMove()
+        }
+        assertEquals(listOf(Workshop.Outcome.NEXT_ROUND, Workshop.Outcome.NEXT_ROUND, Workshop.Outcome.OPENED), outcomes)
+        assertTrue(ws.progress.solved("klotski"))
+        assertEquals("lock", ws.next()?.id)
+        assertTrue(ws.progress.open(Relics.byId("lock")))
     }
 
     @Test

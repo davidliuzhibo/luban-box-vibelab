@@ -43,9 +43,13 @@ object Bronze {
     const val RING = 4
 
     /**
-     * A brass padlock whose keyhole hides behind a sliding plate. The key goes in only once the
-     * plate is down; halfway in it stops until the catch on the side is pressed; fully in, it
-     * frees the shackle. The hanging ring swings but does nothing.
+     * A brass padlock whose keyhole hides behind a sliding plate. The key goes in only once the plate is down (and
+     * then the plate cannot go back up past the key); halfway in it stops until the catch on the side is pressed;
+     * fully in, it frees the shackle. The hanging ring slides but does nothing.
+     *
+     * v0.10.1: the plate and the key are held by their shapes ([padlockShapes]): the plate must clear the keyhole
+     * (it moves 1.5 cm a step now, 3 cm in all: at 2 cm it still covered the key's top half), and the key goes into a
+     * real keyhole it fits. The springs inside the body stay as [Pin]s (nothing to see from outside).
      */
     val padlockPanels = listOf(
         BoxPanel("饰片", Axis.Y, 2, -1),
@@ -55,28 +59,85 @@ object Bronze {
         BoxPanel("铜环", Axis.Y, 1, -1),
     )
     val padlockPins = listOf(
-        Pin(KEY, 0..1, mapOf(COVER to 2..2)),
-        Pin(COVER, 1..2, mapOf(KEY to 0..0)),
         Pin(KEY, 2..3, mapOf(CATCH to 1..1)),
         // The catch only engages the key's notch when the key is halfway in.
         Pin(CATCH, 0..1, mapOf(KEY to 2..2)),
         Pin(SHACKLE, 0..1, mapOf(KEY to 4..4)),
     )
 
-    fun padlock() = PuzzleBox(padlockPanels, padlockPins, SHACKLE)
+    /** Step size of each part (meters): the plate and the key 1.5 cm a step, the catch presses in 4 mm, the rest 1 cm. */
+    fun padlockStep(i: Int) = when (i) {
+        COVER, KEY -> 0.015
+        CATCH -> 0.004
+        else -> 0.01
+    }
 
-    /** Panel boxes (size, center), as [Boxes.panelBoxes]; the lock body is 10 × 8 × 4 cm. */
-    val padlockBoxes: List<Pair<Vec3, Vec3>> = listOf(
-        Vec3(0.03, 0.03, 0.004) to Vec3(0.0, 0.05, 0.022),
-        Vec3(0.012, 0.02, 0.07) to Vec3(0.0, 0.05, 0.075),
-        Vec3(0.006, 0.02, 0.016) to Vec3(0.053, 0.04, 0.0),
-        Vec3(0.08, 0.06, 0.012) to Vec3(0.0, 0.11, 0.0),
-        Vec3(0.03, 0.03, 0.006) to Vec3(-0.035, 0.012, 0.024),
+    // The keyhole: a round hole for the key's shaft with a slot under it for the bit (front view, x and y).
+    const val KEYHOLE_Y = 0.05
+    const val KEYHOLE_R = 0.0042
+    const val KEY_R = 0.0035
+    const val SLOT_HALF_W = 0.002
+    const val SLOT_BOTTOM = 0.0378
+    /** The key's bit: x half-width, y from..to (under the shaft's axis), z length from the tip. */
+    const val BIT_HALF_W = 0.0015
+    const val BIT_Y0 = 0.039
+    const val BIT_Y1 = 0.05
+    const val BIT_LEN = 0.012
+    /** The key's tip (z) where it starts, and how deep the keyhole goes (z of its floor). */
+    const val KEY_TIP = 0.045
+    const val KEYHOLE_FLOOR = -0.0155
+    /** The front plate's face and the sliding plate's back (z). */
+    const val FACE_Z = 0.0225
+    const val COVER_Z = 0.0254
+
+    /** The lock body (bevelled 6 mm) with its keyhole, the shackle's two holes and the catch's pocket cut out. */
+    val padlockBodyBoxes: List<Aabb> = run {
+        val holes = listOf(
+            box(-KEYHOLE_R, KEYHOLE_R, SLOT_BOTTOM, KEYHOLE_Y + KEYHOLE_R, KEYHOLE_FLOOR, 0.03),
+            box(-0.0402, -0.0298, 0.059, 0.09, -0.0052, 0.0052),
+            box(0.0298, 0.0402, 0.059, 0.09, -0.0052, 0.0052),
+            box(0.0455, 0.06, 0.0297, 0.0503, -0.0083, 0.0083),
+        )
+        val solid = listOf(
+            box(-0.05, 0.05, 0.0, 0.08, -0.02, 0.02),
+            // Raised border and face on the front, and the gilt 平安 under the keyhole.
+            box(-0.043, 0.043, 0.007, 0.073, 0.02, FACE_Z),
+            box(-0.0175, 0.0175, 0.0135, 0.0305, FACE_Z, 0.0233),
+        )
+        solid.flatMap { subtractBoxes(it, holes) }
+    }
+
+    /** Each part's boxes where it sits locked (cover, key, catch, shackle, ring); tools/make_bronze.py models them. */
+    val padlockParts: List<List<Aabb>> = listOf(
+        // Gilt plate over the keyhole, with a little ring on its face.
+        listOf(
+            box(-0.015, 0.015, 0.035, 0.065, COVER_Z - 0.002, COVER_Z + 0.002),
+            box(-0.0102, 0.0102, 0.0398, 0.0602, COVER_Z + 0.0013, COVER_Z + 0.0037),
+        ),
+        // Key: shaft (round, 3.5 mm), the bit under it at the tip, and the bow.
+        listOf(
+            box(-KEY_R, KEY_R, KEYHOLE_Y - KEY_R, KEYHOLE_Y + KEY_R, KEY_TIP, KEY_TIP + 0.06),
+            box(-BIT_HALF_W, BIT_HALF_W, BIT_Y0, BIT_Y1, KEY_TIP, KEY_TIP + BIT_LEN),
+            box(-0.0025, 0.0025, KEYHOLE_Y - 0.0115, KEYHOLE_Y + 0.0115, KEY_TIP + 0.0565, KEY_TIP + 0.0795),
+        ),
+        // Catch button on the right side.
+        listOf(box(0.05, 0.056, 0.03, 0.05, -0.008, 0.008)),
+        // Shackle: two legs in their holes and the arch over them.
+        listOf(
+            box(-0.04, -0.03, 0.06, 0.135, -0.005, 0.005),
+            box(0.03, 0.04, 0.06, 0.135, -0.005, 0.005),
+            box(-0.04, 0.04, 0.13, 0.175, -0.005, 0.005),
+        ),
+        // Hanging ring on the front, left of 平安.
+        listOf(box(-0.0492, -0.0208, 0.0118, 0.0402, 0.0233, 0.0277)),
     )
-    val padlockBody = Vec3(0.1, 0.08, 0.04) to Vec3(0.0, 0.04, 0.0)
 
-    /** Step size of each part (meters): the key slides 1.5 cm a step, the others 1 cm. */
-    fun padlockStep(i: Int) = if (i == KEY) 0.015 else 0.01
+    /** The turntable top under the lock (the lock stands on it). */
+    val padlockTurntable = box(-0.2, 0.2, -0.03, 0.0, -0.2, 0.2)
+
+    val padlockShapes = BoxShapes(padlockParts, padlockBodyBoxes + padlockTurntable, ::padlockStep)
+
+    fun padlock() = PuzzleBox(padlockPanels, padlockPins, SHACKLE, padlockShapes)
 
     // ---- 被中香炉: a gimbal censer, put together from the outside in ----------------------------
 

@@ -3,6 +3,7 @@
 blender -b --factory-startup --python tools/preview.py -- <out.png> <model.glb> [more.glb ...]
   env PREVIEW_VIEW=front|top|three (default three-quarter), PREVIEW_SIZE=900, PREVIEW_SAMPLES=48
   env PREVIEW_OFFSETS='{"stick0": [0.05, 0, 0]}' moves named nodes (game frame, meters) first.
+  env PREVIEW_DIR=x,y,z looks from that direction (game frame); PREVIEW_ZOOM=0.6 moves the camera closer.
 Warm key light from the upper left, cool fill, on a neutral backdrop; the camera frames everything.
 """
 import json
@@ -79,6 +80,11 @@ scene.camera = cam
 dist = radius / math.tan(math.atan(18 / cam_data.lens)) * 1.25
 dirs = {"three": Vector((0.55, -1.0, 0.75)), "front": Vector((0, -1, 0.25)), "top": Vector((0, -0.25, 1))}
 d = dirs.get(view, dirs["three"]).normalized()
+if os.environ.get("PREVIEW_DIR"):
+    # A camera direction of its own, game frame (x right, y up, z toward the player).
+    gx, gy, gz = (float(v) for v in os.environ["PREVIEW_DIR"].split(","))
+    d = Vector((gx, -gz, gy)).normalized()
+dist *= float(os.environ.get("PREVIEW_ZOOM", "1"))
 cam.location = center + d * dist
 cam.rotation_euler = (center - cam.location).to_track_quat("-Z", "Y").to_euler()
 scene.render.filepath = out

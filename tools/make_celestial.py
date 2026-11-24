@@ -99,15 +99,21 @@ for k in range(4):
     a = math.radians(45 + 90 * k)
     leg = wk.tube(f"leg{k}", [(0.07 * math.cos(a), 0.012, 0.07 * math.sin(a)), (0.1 * math.cos(a), 0.14, 0.1 * math.sin(a))], 0.004, m["bronze"])
     base.append(leg)
-# The pole: a rod along the polar axis (tilted back by 90° - 35°).
-pole = wk.cylinder("pole", 0.0025, 0.22, (0, 0, 0), m["brass"], verts=16)
-wk.turn(pole, "x", -(90 - 35))
-wk.move(pole, C)
-base.append(pole)
+# The pole: two stubs along the polar axis (tilted back by 90° - 35°), from the meridian ring in to the 四游环's
+# pivots. v0.10.1: it was one rod through the middle, and the sighting tube, which turns about the middle, ran
+# through it.
+for side in (-1, 1):
+    stub = wk.cylinder(f"pole{side}", 0.0025, 0.0195, (0, side * 0.10225, 0), m["brass"], verts=16)
+    wk.turn(stub, "x", -(90 - 35))
+    wk.move(stub, C)
+    base.append(stub)
 objects = [wk.join(base, "am_base")]
 ring = [
     wk.torus("ring", 0.088, 0.003, (0, 0, 0), m["gilt"], axis="x"),
     wk.torus("ring2", 0.088, 0.003, (0.012, 0, 0), m["gilt"], axis="x"),
+    # Pivots at the poles, on the stubs' axis (v0.10.1).
+    wk.cylinder("pivot_n", 0.0025, 0.004, (0, 0.0905, 0), m["brass"], verts=16),
+    wk.cylinder("pivot_s", 0.0025, 0.004, (0, -0.0905, 0), m["brass"], verts=16),
 ]
 for k in range(24):
     tick = wk.box(f"tick{k}", (0.012, 0.0015, 0.004), (0.006, 0, 0.088), m["gilt"], bevel_width=0)
@@ -115,9 +121,10 @@ for k in range(24):
     ring.append(tick)
 objects.append(wk.join(ring, "am_ring"))
 tube = [
-    wk.cylinder("tube", 0.006, 0.17, (0, 0, 0), m["bronze"], axis="z", verts=24),
-    wk.torus("eye", 0.007, 0.0015, (0, 0, -0.085), m["gilt"], axis="z", segments=24),
-    wk.torus("mouth", 0.007, 0.0015, (0, 0, 0.085), m["gilt"], axis="z", segments=24),
+    # v0.10.1: 1.6 cm shorter; its gilt ends reached 1.5 mm into the 四游环 it turns inside.
+    wk.cylinder("tube", 0.006, 0.162, (0, 0, 0), m["bronze"], axis="z", verts=24),
+    wk.torus("eye", 0.007, 0.0015, (0, 0, -0.081), m["gilt"], axis="z", segments=24),
+    wk.torus("mouth", 0.007, 0.0015, (0, 0, 0.081), m["gilt"], axis="z", segments=24),
     wk.cylinder("pivot", 0.003, 0.03, (0, 0, 0), m["brass"], axis="x", verts=16),
 ]
 objects.append(wk.join(tube, "am_tube"))
@@ -132,9 +139,15 @@ for x in (-0.15, 0.15):
         frame.append(wk.box(f"post{x}{z}", (0.012, 0.36, 0.012), (x, 0.18, z), m["rose"], bevel_width=0.001))
 frame.append(wk.box("top", (0.32, 0.01, 0.1), (0, 0.285, -0.05), m["rose"], bevel_width=0.001))
 frame.append(wk.box("roof", (0.34, 0.012, 0.22), (0, 0.366, 0), m["lacquer"], bevel_width=0.002))
-frame.append(wk.box("axle_l", (0.012, 0.012, 0.012), (-0.1, 0.13, 0), m["bronze"], bevel_width=0))
-frame.append(wk.box("axle_r", (0.012, 0.012, 0.012), (0.1, 0.13, 0), m["bronze"], bevel_width=0))
-frame.append(wk.box("pedestal", (0.03, 0.006, 0.03), (0, 0.288, -0.05), m["bronze"], bevel_width=0.0008))
+# Bearings with a slot open to the front for the wheel's axle, which slides in from the front (v0.10.1: the axle ends
+# sank 1 mm into solid blocks); the globe rests straight on the top board (its pedestal is gone: the globe sank 6 mm
+# into it, and a globe that fits between the board and the roof has to slide in from the front).
+for x in (-0.1, 0.1):
+    bearing = wk.box(f"axle{x}", (0.012, 0.012, 0.012), (x, 0.13, 0), m["bronze"], bevel_width=0)
+    inner = x - 0.006 * (1 if x > 0 else -1)
+    wk.subtract(bearing, wk.cylinder("hole", 0.0045, 0.012, (inner, 0.13, 0), m["bronze"], axis="x", verts=16))
+    wk.subtract(bearing, wk.box("slot", (0.012, 0.009, 0.0075), (inner, 0.13, 0.0035), m["bronze"], bevel_width=0))
+    frame.append(bearing)
 objects = [wk.join(frame, "wc_frame")]
 objects.append(wk.join([
     wk.box("basin", (0.16, 0.03, 0.1), (0, 0.015, 0), m["wood"], bevel_width=0.002),
@@ -156,7 +169,8 @@ objects.append(wk.join(wheel, "wc_枢轮"))
 objects.append(wk.join([
     wk.box("tank", (0.06, 0.05, 0.06), (0, 0.025, 0), m["wood"], bevel_width=0.0015),
     wk.box("tank_water", (0.05, 0.002, 0.05), (0, 0.046, 0), m["water"], bevel_width=0),
-    wk.box("spout", (0.05, 0.008, 0.01), (0.045, 0.01, 0), m["bronze"], bevel_width=0.0008),
+    # A short spout (v0.10.1): the 天衡 slides in behind the tank past its end.
+    wk.box("spout", (0.012, 0.008, 0.01), (0.032, 0.01, 0), m["bronze"], bevel_width=0.0008),
 ], "wc_天池"))
 objects.append(wk.join([
     wk.box("beam", (0.2, 0.008, 0.01), (0, 0.004, 0), m["bronze"], bevel_width=0.0008),
@@ -166,11 +180,13 @@ objects.append(wk.join([
 objects.append(wk.join([wk.box("gate", (0.01, 0.04, 0.012), (0, 0.02, 0), m["brass"], bevel_width=0.0008)], "wc_天关"))
 objects.append(wk.join([wk.box("pawl", (0.01, 0.03, 0.008), (0, 0.015, 0), m["brass"], bevel_width=0.0008)], "wc_左天锁"))
 objects.append(wk.join([wk.box("pawl", (0.01, 0.03, 0.008), (0, 0.015, 0), m["brass"], bevel_width=0.0008)], "wc_右天锁"))
-globe = [wk.sphere("globe", 0.035, (0, 0, 0), m["indigo"], segments=32)]
+# 3.3 cm (was 3.5): it rests on the top board, 3 mm under the roof, and slides in between them (v0.10.1).
+GR = 0.033
+globe = [wk.sphere("globe", GR, (0, 0, 0), m["indigo"], segments=32)]
 for k in range(10):
     a = math.radians(k * 36)
-    globe.append(wk.sphere(f"star{k}", 0.003, (0.0355 * math.cos(a) * 0.8, 0.0355 * 0.6 * math.sin(3 * a), 0.0355 * math.sin(a) * 0.8), m["gilt"], segments=8))
-globe.append(wk.torus("equator", 0.036, 0.0012, (0, 0, 0), m["gilt"], axis="y", segments=48))
+    globe.append(wk.sphere(f"star{k}", 0.003, ((GR + 0.0005) * math.cos(a) * 0.8, (GR + 0.0005) * 0.6 * math.sin(3 * a), (GR + 0.0005) * math.sin(a) * 0.8), m["gilt"], segments=8))
+globe.append(wk.torus("equator", GR + 0.001, 0.0012, (0, 0, 0), m["gilt"], axis="y", segments=48))
 objects.append(wk.join(globe, "wc_浑象"))
 wk.export(os.path.join(out, "waterclock.glb"), objects)
 
@@ -181,8 +197,9 @@ body = wk.box("body", (0.3, 0.12, 0.2), (0, 0.06, 0), m["wood"], bevel_width=0.0
 # Recesses in the top for the three treasures (4 mm deep), and the doorway in front.
 for name, size, center in [
     ("ruler", (0.25, 0.01, 0.034), (0, 0.12, 0.05)),
-    ("seal", (0.068, 0.01, 0.068), (-0.08, 0.12, -0.045)),
-    ("chart", (0.13, 0.01, 0.13), (0.08, 0.12, -0.045)),
+    # v0.10.1: 1 cm further forward (the chart's recess ran out of the back edge, the chart lay on the brass trim).
+    ("seal", (0.068, 0.01, 0.068), (-0.08, 0.12, -0.035)),
+    ("chart", (0.126, 0.01, 0.126), (0.08, 0.12, -0.035)),
     ("door", (0.27, 0.105, 0.15), (0, 0.06, 0.035)),
 ]:
     wk.subtract(body, wk.box("cut_" + name, (size[0], size[1] if name == "door" else 0.008, size[2]), center, m["wood"], bevel_width=0))
@@ -190,7 +207,9 @@ inside = wk.box("inside", (0.26, 0.1, 0.004), (0, 0.06, -0.038), m["lacquer"], b
 trim = [wk.box(f"trim{k}", (0.31, 0.008, 0.008), (0, y, z), m["brass"], bevel_width=0.0008) for k, (y, z) in enumerate([(0.004, 0.101), (0.116, 0.101), (0.004, -0.101), (0.116, -0.101)])]
 objects = [wk.join([body, inside] + trim, "fc_body")]
 door = [
-    wk.box("door", (0.268, 0.104, 0.01), (0, 0.054, 0.005), m["rose"], bevel_width=0.0015),
+    # v0.10.1: from 1.1 cm up (it overlapped the brass trim along the bottom edge by 5 mm, and opening it about a
+    # lower hinge put it into the turntable).
+    wk.box("door", (0.268, 0.095, 0.01), (0, 0.0585, 0.005), m["rose"], bevel_width=0.0015),
     wk.text_mesh("words", "天工开物", 0.022, (0, 0.06, 0.0104), facing="+z", mat=m["gilt"]),
 ]
 objects.append(wk.join(door, "fc_door"))

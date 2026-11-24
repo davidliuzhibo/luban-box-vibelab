@@ -32,8 +32,11 @@ class LaterChaptersTest {
     @Test
     fun padlockNeedsTheHiddenKeyholeAndTheCatch() {
         val lock = Bronze.padlock()
-        // The key will not go in while the plate covers the keyhole.
-        assertEquals(0..0, lock.reach(Bronze.KEY, Axis.Z))
+        // The key reaches the plate and stops there while the plate covers the keyhole (v0.10.1: by their shapes).
+        assertEquals(-1..0, lock.reach(Bronze.KEY, Axis.Z))
+        lock.move(Bronze.KEY, Axis.Z, -1)
+        assertEquals(-1..0, lock.reach(Bronze.KEY, Axis.Z))
+        lock.reset()
         val sol = lock.solution()!!
         assertEquals(5, sol.size)
         for (m in sol) lock.move(m.piece, m.axis, m.to)

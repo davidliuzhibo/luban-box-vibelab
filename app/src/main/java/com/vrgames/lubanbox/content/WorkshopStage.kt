@@ -30,6 +30,7 @@ import com.pico.spatial.ui.foundation.content.SpatialView
 import com.pico.spatial.ui.foundation.content.toColor4
 import com.pico.spatial.ui.foundation.gesture.TargetEntity
 import com.pico.spatial.ui.foundation.gesture.detectSpatialDragGesture
+import com.pico.spatial.ui.foundation.gesture.detectSpatialTapGesture
 import com.pico.spatial.ui.platform.LengthUnit
 import com.pico.spatial.ui.platform.LocalPhysicalLengthConverter
 import com.pico.spatial.ui.platform.containers.LocalSpatialNavigator
@@ -116,6 +117,7 @@ fun WorkshopStage() {
             subscription[0]?.cancel()
             AutoPilot.stepper = null
             AutoPilot.turner = null
+            AutoPilot.bench = null
             Game.demo = null
             Game.stopVoice()
             com.vrgames.lubanbox.platform.AppExit.stageAlive = false
@@ -169,7 +171,7 @@ fun WorkshopStage() {
         }
         Log.w("LubanStage", "no head pose: the bench stays at the room's front")
     }
-    LaunchedEffect(Game.hint, bench) { bench?.showHint(Game.hint) }
+    LaunchedEffect(Game.hint, Game.hintAsked, bench) { bench?.showHint(Game.hint) }
     LaunchedEffect(Game.workshopEnv, sky) { sky?.enabled = Game.workshopEnv }
     LaunchedEffect(Game.debugSky, sky) {
         val v = Game.debugSky?.split(",")?.mapNotNull { it.trim().toFloatOrNull() } ?: return@LaunchedEffect
@@ -180,8 +182,9 @@ fun WorkshopStage() {
         bench?.showCoach(!Game.coached && !Game.showTitle && Game.relicId == com.vrgames.lubanbox.core.Relics.all.first().id && Game.relicCardDismissed)
     }
     // Scene panels: the title card, the "opened" card and the menu tab.
-    LaunchedEffect(Game.showTitle, Game.opened, Game.relicId, bench) {
+    LaunchedEffect(Game.showTitle, Game.opened, Game.relicId, Game.benchVersion, bench) {
         val b = bench ?: return@LaunchedEffect
+        synchronized(Game.lock) { b.showTitle(Game.showTitle) }
         b.showPanel(PANEL_INTRO, Game.showTitle)
         b.showPanel(PANEL_RESULT, !Game.showTitle && Game.opened == Game.relicId)
         b.showPanel(PANEL_MENU, !Game.showTitle)
@@ -208,7 +211,14 @@ fun WorkshopStage() {
     }
 
     SpatialView(
-        Modifier.pointerInput(Unit) {
+        Modifier.pointerInput(1) {
+            // v0.10: a short pinch that never became a drag (the emulator's click; a still hand on the headset).
+            detectSpatialTapGesture(context, TargetEntity.any()) { value ->
+                val b = bench ?: return@detectSpatialTapGesture
+                if (Game.showTitle) return@detectSpatialTapGesture
+                tapPart(b, value.targetEntity, "tap")
+            }
+        }.pointerInput(Unit) {
             fun meters(px: Float) = with(density) { converter.dpToLength(px.toDp(), LengthUnit.Meters) }.toDouble()
             detectSpatialDragGesture(
                 context = context,
@@ -222,6 +232,7 @@ fun WorkshopStage() {
                         else -> if ((l ?: 0f) > PINCH_HELD) 0 else -1
                     }
                     pinch[1] = 0
+                    PinchClock.dragAt = SystemClock.uptimeMillis()
                     // A start while a drag is still open means its end never came: close it first.
                     if (b.dragging) release(b, "restart")
                     // The title card asks to start first.
@@ -328,6 +339,11 @@ fun WorkshopStage() {
                 can
             }
             AutoPilot.turner = { deg -> b.turnBy(deg) }
+            AutoPilot.bench = b
+            // Every stick that comes out of the lock: which way, where it goes, and how close its way comes to anything.
+            b.onExit = { path, cl ->
+                Log.i("LubanExit", "EXIT stick=${path.stick} slot=${path.rest.slot} mode=${path.mode} legs=${path.keys.size - 1} ${"%.1f".format(path.duration)}s minClear $cl")
+            }
             Game.demo = {
                 val can = canStep(b)
                 if (can) autoStep(b)
@@ -443,11 +459,62 @@ private fun android.content.Context.findActivity(): android.app.Activity? {
     return null
 }
 
-private fun release(b: Bench?, why: String) {
+/**
+ * v0.10: when the last pinch started, when a part last turned, when a pinch that really moved something
+ * last ended (uptime ms). A tap may come as a short drag, as a tap event, or as both: whichever comes
+ * first turns the part, the other is dropped.
+ */
+private object PinchClock {
+    var dragAt = 0L
+    var turnedAt = 0L
+    var movedEndAt = 0L
+}
+
+/** A pinch shorter than this whose hand strayed less than [TAP_MOVE] is a tap (it turns a 斗拱 part). */
+private const val TAP_MS = 700L
+private const val TAP_MOVE = 0.015
+/** A tap event this soon after a turn or a real drag belongs to that same pinch. */
+private const val TAP_DEDUPE_MS = 500L
+
+/**
+ * A tap on [target]: a loose 斗拱 part (on the bench, or the one in the hand) turns a quarter turn. Driven by
+ * the tap gesture, and by the AutoPilot's test hook through the same path.
+ */
+internal fun tapPart(b: Bench, target: Entity?, source: String): Boolean {
+    val now = SystemClock.uptimeMillis()
+    if (now - PinchClock.turnedAt < TAP_DEDUPE_MS || now - PinchClock.movedEndAt < TAP_DEDUPE_MS) {
+        Log.i(INPUT_TAG, "$source on ${target?.getName()} ignored: part of the pinch just handled")
+        return false
+    }
+    val turned = synchronized(Game.lock) {
+        val held = b.heldPart
+        val i = b.build?.partOf(target)
+        when {
+            i == null -> null
+            held == null -> b.turnPart(i)
+            held == i -> b.turnPart(held)
+            else -> null
+        }
+    } ?: return false
+    PinchClock.turnedAt = now
+    Game.sound?.play(Sfx.TURN, Vec3.ZERO)
+    Handler(Looper.getMainLooper()).post { Game.partTurned() }
+    Log.i(INPUT_TAG, "$source turns part ${turned.first} to ${turned.second.toInt()}°")
+    return true
+}
+
+internal fun release(b: Bench?, why: String): Bench.Released {
     Handler(Looper.getMainLooper()).post { Game.partHeld = false }
-    if (b == null) return
-    val r = synchronized(Game.lock) { b.end() }
-    Log.i(INPUT_TAG, "$why -> ${r::class.simpleName}")
+    if (b == null) return Bench.Released.Nothing
+    val now = SystemClock.uptimeMillis()
+    val held = b.heldPart
+    val travel = b.heldTravel
+    // A short pinch that barely moved a 斗拱 part is a tap: it turns (not after a lost release: the watchdog).
+    val tap = held != null && why != "watchdog" && why != "restart" && now - PinchClock.dragAt < TAP_MS && travel < TAP_MOVE
+    val turnedAlready = now - PinchClock.turnedAt < TAP_DEDUPE_MS
+    val r = synchronized(Game.lock) { b.end(asTap = tap, turn = !turnedAlready) }
+    if (held != null && !tap) PinchClock.movedEndAt = now
+    Log.i(INPUT_TAG, "$why -> ${describe(b, r)} (held ${now - PinchClock.dragAt} ms, hand ${"%.1f".format(travel * 100)} cm${if (tap) ", a tap" else ""})")
     when (r) {
         is Bench.Released.Moved -> afterMove(b, r.move.piece)
         is Bench.Released.Dropped -> when (val d = r.drop) {
@@ -459,13 +526,158 @@ private fun release(b: Bench?, why: String) {
                 Game.sound?.play(Sfx.BUMP, Vec3.ZERO)
                 Game.refused(d.why, d.slot.id)
             }
+            is AssemblyView.Drop.Turned -> {
+                PinchClock.turnedAt = now
+                Game.sound?.play(Sfx.TURN, Vec3.ZERO)
+                Handler(Looper.getMainLooper()).post { Game.partTurned() }
+            }
             AssemblyView.Drop.Loose -> Unit
         }
         Bench.Released.Nothing -> Unit
     }
+    return r
 }
 
-private fun afterMove(b: Bench, piece: Int?) {
+/** One line for the log: what letting go did. */
+private fun describe(b: Bench, r: Bench.Released): String = when (r) {
+    is Bench.Released.Moved -> "Moved ${r.move}"
+    Bench.Released.Nothing -> "Nothing"
+    is Bench.Released.Dropped -> when (val d = r.drop) {
+        is AssemblyView.Drop.Placed -> "Placed part=${d.part} ${b.build?.assembly?.parts?.getOrNull(d.part)} in ${d.slot.id}"
+        is AssemblyView.Drop.Refused -> "Refused part=${d.part} ${b.build?.assembly?.parts?.getOrNull(d.part)} at ${d.slot.id}: ${d.why}"
+        is AssemblyView.Drop.Turned -> "Turned part=${d.part} to ${d.yaw.toInt()}°"
+        AssemblyView.Drop.Loose -> "Loose"
+    }
+}
+
+// ---- Test hooks (AutoPilot, debug builds): the player's own handlers, fed synthetic hand movement ----------
+
+/**
+ * Pinches 斗拱 part [part], carries it up 8 cm, across and down to [to] (the relic's frame) in 1 cm steps of hand
+ * movement through [Bench.drag], and lets go through [release]. Returns what letting go did.
+ */
+internal fun hookCarryPart(b: Bench, part: Int, to: Vec3): Bench.Released {
+    val v = b.build ?: return Bench.Released.Nothing
+    val ok = synchronized(Game.lock) { b.grabOf(v.holder(part))?.let { b.begin(it) } ?: false }
+    if (!ok) return Bench.Released.Nothing
+    // A held pinch, not a tap.
+    PinchClock.dragAt = SystemClock.uptimeMillis() - 2 * TAP_MS
+    var cur = synchronized(Game.lock) { v.position(part) }
+    for (p in listOf(cur + Vec3(0.0, 0.08, 0.0), to + Vec3(0.0, 0.08, 0.0), to)) {
+        val d = p - cur
+        val n = maxOf(1, (d.length() / 0.01).toInt())
+        repeat(n) { synchronized(Game.lock) { b.drag(b.roomDelta(d * (1.0 / n))) } }
+        cur = p
+    }
+    return release(b, "hook")
+}
+
+/**
+ * v0.10.1 test hook: pinches part [part], carries it over [at] (the relic's frame), then pushes the hand 15 cm straight
+ * down into what is built there in 5 mm steps, as a player pressing it in would. Logs how low the part got against how
+ * low it may go there (it must ride on top: sank 0.0 mm), then lifts the hand and puts the part back where it lay.
+ */
+internal fun hookPressPart(b: Bench, part: Int, at: Vec3): String {
+    val v = b.build ?: return "no build"
+    val ok = synchronized(Game.lock) { b.grabOf(v.holder(part))?.let { b.begin(it) } ?: false }
+    if (!ok) return "cannot grab $part"
+    PinchClock.dragAt = SystemClock.uptimeMillis() - 2 * TAP_MS
+    val home = synchronized(Game.lock) { v.position(part) }
+    var cur = home
+    fun moveTo(p: Vec3, step: Double) {
+        val d = p - cur
+        val n = maxOf(1, (d.length() / step).toInt())
+        repeat(n) { synchronized(Game.lock) { b.drag(b.roomDelta(d * (1.0 / n))) } }
+        cur = p
+    }
+    moveTo(cur + Vec3(0.0, 0.2, 0.0), 0.01)
+    moveTo(Vec3(at.x, cur.y, at.z), 0.01)
+    var sank = 0.0
+    var lowest = Double.MAX_VALUE
+    var floor = 0.0
+    repeat(30) {
+        moveTo(cur + Vec3(0.0, -0.005, 0.0), 0.005)
+        synchronized(Game.lock) {
+            val p = v.position(part)
+            floor = v.liftY(part, Vec3(p.x, -1.0, p.z))
+            sank = maxOf(sank, floor - p.y)
+            lowest = minOf(lowest, p.y)
+        }
+    }
+    moveTo(cur + Vec3(0.0, 0.25, 0.0), 0.01)
+    moveTo(Vec3(home.x, cur.y, home.z), 0.01)
+    moveTo(home + Vec3(0.0, 0.01, 0.0), 0.01)
+    val r = release(b, "hook")
+    return "part=$part ${v.assembly.parts[part]} hand went 15 cm down over (${"%.3f".format(at.x)}, ${"%.3f".format(at.z)}): part lowest y=${"%.3f".format(lowest)}, " +
+        "may go down to ${"%.3f".format(floor)}, sank ${"%.1f".format(maxOf(0.0, sank) * 1000)} mm -> ${describe(b, r)}"
+}
+
+/** A short pinch on part [part] through the player's tap handler (it turns a quarter turn). */
+internal fun hookTapPart(b: Bench, part: Int): Boolean {
+    val v = b.build ?: return false
+    return tapPart(b, v.holder(part), "hook-tap")
+}
+
+/**
+ * Makes the solver's next move on the lock as the player would: pinches the stick, moves the hand along its axis in
+ * 4 mm steps through [Bench.drag] and lets go through [release]. Null when nothing is left; "busy" while a stick is
+ * still on its way out.
+ */
+internal fun hookBurrMove(b: Bench): String? {
+    val s = b.slide ?: return null
+    if (b.busy) return "busy"
+    val m = synchronized(Game.lock) { s.puzzle.solution()?.firstOrNull() } ?: return null
+    val ok = synchronized(Game.lock) { b.grabOf(s.holder(m.piece))?.let { b.begin(it) } ?: false }
+    if (!ok) return "cannot grab ${m.piece}"
+    PinchClock.dragAt = SystemClock.uptimeMillis() - 2 * TAP_MS
+    val cells = m.to - synchronized(Game.lock) { s.puzzle.offset(m.piece, m.axis) }
+    val dist = cells * com.vrgames.lubanbox.core.Burrs.CELL
+    val u = when (m.axis) {
+        com.vrgames.lubanbox.core.Axis.X -> Vec3(1.0, 0.0, 0.0)
+        com.vrgames.lubanbox.core.Axis.Y -> Vec3(0.0, 1.0, 0.0)
+        com.vrgames.lubanbox.core.Axis.Z -> Vec3(0.0, 0.0, 1.0)
+    } * dist
+    val n = maxOf(3, (kotlin.math.abs(dist) / 0.004).toInt())
+    repeat(n) { synchronized(Game.lock) { b.drag(b.roomDelta(u * (1.0 / n))) } }
+    val r = release(b, "hook")
+    return "$m -> ${describe(b, r)}"
+}
+
+/**
+ * v0.10.1 test hook: pinches sliding piece [piece] and moves the hand [meters] along [axis] (object frame) in 2 mm steps
+ * through [Bench.drag], as the player would, then lets go through [release]. Reports the farthest the piece was shown
+ * (steps), what the release did, and for the 鲁班盒 the free room and the deepest overlap of the move.
+ */
+internal fun hookSlideDrag(b: Bench, piece: Int, axis: com.vrgames.lubanbox.core.Axis, meters: Double): String {
+    val s = b.slide ?: return "no slide"
+    val box = s.puzzle as? com.vrgames.lubanbox.core.PuzzleBox
+    val before = synchronized(Game.lock) { box?.positions()?.get(piece) }
+    val free = synchronized(Game.lock) {
+        box?.let { p -> val sign = if (meters * p.panels[piece].direction > 0) 1 else -1; p.geometricFree(piece, before!!, sign, p.positions()) }
+    }
+    val ok = synchronized(Game.lock) { b.grabOf(s.holder(piece))?.let { b.begin(it) } ?: false }
+    if (!ok) return "cannot grab $piece"
+    PinchClock.dragAt = SystemClock.uptimeMillis() - 2 * TAP_MS
+    val u = com.vrgames.lubanbox.core.Sweep.unit(axis) * meters
+    val n = maxOf(3, (kotlin.math.abs(meters) / 0.002).toInt())
+    var far = 0.0
+    var bumps = 0
+    repeat(n) {
+        val felt = synchronized(Game.lock) { b.drag(b.roomDelta(u * (1.0 / n))) }
+        if (felt == Bench.Felt.Bump) bumps++
+        val o = synchronized(Game.lock) { s.shownOffset(piece, axis) }
+        if (kotlin.math.abs(o) > kotlin.math.abs(far)) far = o
+    }
+    val r = release(b, "hook")
+    val after = synchronized(Game.lock) { box?.positions()?.get(piece) }
+    val worst = synchronized(Game.lock) {
+        if (box != null && before != null && after != null && after != before) box.sweepWorst(piece, before, after, box.positions().also { it[piece] = before }) else null
+    }
+    return "hand ${"%.1f".format(meters * 1000)} mm, shown at most ${"%.2f".format(far)} steps, bumps $bumps, free ${free?.let { if (it.isInfinite()) "∞" else "%.1f".format(it * 1000) }} mm, " +
+        "position $before→$after, worst overlap ${worst?.let { "%.2f".format(maxOf(0.0, it) * 1000) } ?: "-"} mm -> ${describe(b, r)}"
+}
+
+internal fun afterMove(b: Bench, piece: Int?) {
     val out = piece != null && synchronized(Game.lock) { b.slide?.puzzle?.removed(piece) == true }
     if (out) Game.sound?.play(Sfx.OUT, Vec3.ZERO)
     when (Game.afterMove()) {
@@ -491,5 +703,7 @@ private fun canStep(b: Bench): Boolean = synchronized(Game.lock) {
 /** AutoPilot: one solver move, applied through the rules and animated by the views. */
 private fun autoStep(b: Bench) {
     val moved = synchronized(Game.lock) { b.autoStep() } ?: return
+    // A stick still on its way out: this step waits.
+    if (moved == -2) return
     afterMove(b, moved.takeIf { it >= 0 })
 }

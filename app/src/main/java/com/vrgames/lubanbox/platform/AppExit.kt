@@ -24,8 +24,18 @@ object AppExit {
     /** True while the stage is up. The levels window closes itself when it goes down. */
     var stageAlive by mutableStateOf(false)
 
-    /** Finishes every task of this app: the stage and any window opened from it. */
+    /**
+     * v3 (emulator 2026-11-19: after 退出 the side window stayed; `appTasks` listed only the stage's task): every open window
+     * registers how to close itself, and quitting closes each one directly before finishing the app's tasks.
+     */
+    private val windowClosers = linkedMapOf<String, () -> Unit>()
+
+    /** Finishes every task of this app: each open window first, then the stage. */
     fun finishAll(context: Context) {
+        val closers = windowClosers.values.toList()
+        windowClosers.clear()
+        Log.i(TAG, "closing ${closers.size} window(s)")
+        closers.forEach { runCatching { it() } }
         val am = context.getSystemService(ActivityManager::class.java)
         val tasks = runCatching { am?.appTasks }.getOrNull().orEmpty()
         Log.i(TAG, "finish ${tasks.size} task(s)")
@@ -58,6 +68,14 @@ object AppExit {
     fun CloseWithStage(windowId: String) {
         val context = LocalContext.current
         val navigator = LocalSpatialNavigator.current
+        androidx.compose.runtime.DisposableEffect(windowId) {
+            val own = context.activity()
+            windowClosers[windowId] = {
+                runCatching { navigator.closeWindowContainer(windowId) }
+                own?.let { runCatching { it.finishAndRemoveTask() } }
+            }
+            onDispose { windowClosers.remove(windowId) }
+        }
         LaunchedEffect(stageAlive) {
             if (stageAlive) return@LaunchedEffect
             // A moment's grace, in case the window is drawn before the stage on a restore.

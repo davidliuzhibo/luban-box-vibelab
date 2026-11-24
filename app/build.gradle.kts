@@ -14,8 +14,8 @@ android {
         applicationId = "com.vrgames.lubanbox"
         minSdk = 35
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.9.1"
+        versionCode = 15
+        versionName = "0.10.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters.add("arm64-v8a") }

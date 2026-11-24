@@ -24,10 +24,12 @@ object Celestial {
     val chariotSlots = listOf(
         Slot("左立轮", STAND_GEAR, v(-0.07, 0.04, 0.0), yaw = 90.0),
         Slot("右立轮", STAND_GEAR, v(0.07, 0.04, 0.0), yaw = 90.0),
-        Slot("左小平轮", SMALL_GEAR, v(-0.07, 0.075, 0.0), needs = setOf("左立轮")),
-        Slot("右小平轮", SMALL_GEAR, v(0.07, 0.075, 0.0), needs = setOf("右立轮")),
-        Slot("大平轮", BIG_GEAR, v(0.0, 0.075, 0.0), needs = setOf("左小平轮", "右小平轮")),
-        Slot("木人", FIGURE, v(0.0, 0.1, 0.0), needs = setOf("大平轮")),
+        // v0.10.1: the small gears turned half a tooth so their teeth fall between the big gear's (tooth met tooth,
+        // 2 mm deep), and the three flat gears 2 mm higher, clear of the upright gears' top teeth (1.2 mm into them).
+        Slot("左小平轮", SMALL_GEAR, v(-0.07, 0.077, 0.0), yaw = 180.0 / 14, needs = setOf("左立轮")),
+        Slot("右小平轮", SMALL_GEAR, v(0.07, 0.077, 0.0), yaw = 180.0 / 14, needs = setOf("右立轮")),
+        Slot("大平轮", BIG_GEAR, v(0.0, 0.077, 0.0), needs = setOf("左小平轮", "右小平轮")),
+        Slot("木人", FIGURE, v(0.0, 0.102, 0.0), needs = setOf("大平轮")),
     )
     val chariotParts = listOf(STAND_GEAR, STAND_GEAR, SMALL_GEAR, SMALL_GEAR, MID_GEAR, BIG_GEAR, FIGURE)
 
@@ -89,12 +91,14 @@ object Celestial {
         Slot("退水壶", SUMP, v(0.0, 0.0, 0.0)),
         // The wheel's origin is its hub; the others' the middle of their underside.
         Slot("枢轮", WHEEL, v(0.0, 0.13, 0.0), needs = setOf("退水壶")),
-        Slot("天池", TANK, v(-0.12, 0.23, 0.0), needs = setOf("枢轮")),
+        // v0.10.1: 6 mm further in (sliding in from the front it passed through the left front post).
+        Slot("天池", TANK, v(-0.114, 0.23, 0.0), needs = setOf("枢轮")),
         Slot("天衡", BEAM, v(0.0, 0.25, -0.05), needs = setOf("枢轮")),
         Slot("天关", GATE, v(0.08, 0.23, 0.0), needs = setOf("天衡")),
         Slot("左天锁", LOCK_L, v(-0.04, 0.2, 0.05), needs = setOf("天关")),
         Slot("右天锁", LOCK_R, v(0.04, 0.2, 0.05), needs = setOf("天关")),
-        Slot("浑象", GLOBE, v(0.0, 0.32, -0.05), needs = setOf("左天锁", "右天锁", "天池")),
+        // v0.10.1: the globe (3.3 cm now) rests on the top board, its middle 3.3 cm up.
+        Slot("浑象", GLOBE, v(0.0, 0.323, -0.05), needs = setOf("左天锁", "右天锁", "天池")),
     )
     val clockParts = listOf(SUMP, WHEEL, TANK, BEAM, GATE, LOCK_L, LOCK_R, GLOBE)
 
@@ -110,8 +114,9 @@ object Celestial {
         // Recesses in the chest's top (12 cm up, 4 mm deep): the ruler across the front, the
         // seal and the star chart behind it.
         Slot("尺槽", RULER, v(0.0, 0.116, 0.05)),
-        Slot("印槽", SEAL, v(-0.08, 0.116, -0.045), needs = setOf("尺槽")),
-        Slot("图槽", STAR_CHART, v(0.08, 0.116, -0.045), needs = setOf("尺槽")),
+        // v0.10.1: the back two 1 cm further forward (the star chart lay 3 mm into the brass trim on the back edge).
+        Slot("印槽", SEAL, v(-0.08, 0.116, -0.035), needs = setOf("尺槽")),
+        Slot("图槽", STAR_CHART, v(0.08, 0.116, -0.035), needs = setOf("尺槽")),
     )
     val chestParts = listOf(RULER, SEAL, STAR_CHART)
 

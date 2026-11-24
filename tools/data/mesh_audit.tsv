@@ -1,0 +1,277 @@
+# tools/audit_meshes.py (v0.10.1): relic, check, pair, deepest mm, joint rest mm, joint, over mm
+#sha256	censer.glb	181e276ab521c5f28414c1897c91ced2429e763cf6ac1954083d8aaab916dc5c
+#sha256	chariot.glb	1021fea65939757ace2820167387c0b1c1c8dfe47bc4d82e43bd765ffdcbbf77
+#sha256	chest.glb	7c0109d7bb93e28da4a679ae41438c84332d03d392c04ed67a261cf1352f792f
+#sha256	dougong.glb	fe5218d7153509d1e37a9735f55e6ea88f2cee4fe6ae8d2644c7ae59bd43c661
+#sha256	waterclock.glb	7af7abbe2d604a586dd3ed0cf0df2035b7bfa0a63cf81c50d802feebc987eac0
+斗拱	dg_栌斗 resting	dg_栌斗×dg_column	0.0	0.0	0	0.0
+斗拱	dg_栌斗 into slot 0 from (0.02, 0.0, 0.02)	dg_栌斗×-	0.0	0.0	0	0.0
+斗拱	dg_栌斗 into slot 0 from (-0.025, 0.01, -0.01)	dg_栌斗×-	0.0	0.0	0	0.0
+斗拱	dg_华栱 resting	dg_华栱×dg_column	0.0	0.0	0	0.0
+斗拱	dg_华栱 resting	dg_华栱×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_华栱 into slot 1 from (0.02, 0.0, 0.02)	dg_华栱×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_华栱 into slot 1 from (-0.025, 0.01, -0.01)	dg_华栱×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_泥道栱 resting	dg_泥道栱×dg_column	0.0	0.0	0	0.0
+斗拱	dg_泥道栱 resting	dg_泥道栱×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_泥道栱 resting	dg_泥道栱×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_泥道栱 into slot 2 from (0.02, 0.0, 0.02)	dg_泥道栱×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_泥道栱 into slot 2 from (-0.025, 0.01, -0.01)	dg_泥道栱×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_交互斗 resting	dg_交互斗×dg_column	0.0	0.0	0	0.0
+斗拱	dg_交互斗 resting	dg_交互斗×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_交互斗 resting	dg_交互斗×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_交互斗 resting	dg_交互斗×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_交互斗 into slot 3 from (0.02, 0.0, 0.02)	dg_交互斗×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_交互斗 into slot 3 from (-0.025, 0.01, -0.01)	dg_交互斗×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_column	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 into slot 4 from (0.02, 0.0, 0.02)	dg_散斗×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 into slot 4 from (-0.025, 0.01, -0.01)	dg_散斗×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_column	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 into slot 5 from (0.02, 0.0, 0.02)	dg_散斗×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 into slot 5 from (-0.025, 0.01, -0.01)	dg_散斗×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_交互斗 resting	dg_交互斗×dg_column	0.0	0.0	0	0.0
+斗拱	dg_交互斗 resting	dg_交互斗×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_交互斗 resting	dg_交互斗×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_交互斗 resting	dg_交互斗×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_交互斗 resting	dg_交互斗×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_交互斗 resting	dg_交互斗×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_交互斗 resting	dg_交互斗×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_交互斗 into slot 6 from (0.02, 0.0, 0.02)	dg_交互斗×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_交互斗 into slot 6 from (-0.025, 0.01, -0.01)	dg_交互斗×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_令栱 resting	dg_令栱×dg_column	0.0	0.0	0	0.0
+斗拱	dg_令栱 resting	dg_令栱×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_令栱 resting	dg_令栱×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_令栱 resting	dg_令栱×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_令栱 resting	dg_令栱×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_令栱 resting	dg_令栱×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_令栱 resting	dg_令栱×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_令栱 resting	dg_令栱×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_令栱 into slot 7 from (0.02, 0.0, 0.02)	dg_令栱×-	0.0	0.0	0	0.0
+斗拱	dg_令栱 into slot 7 from (-0.025, 0.01, -0.01)	dg_令栱×-	0.0	0.0	0	0.0
+斗拱	dg_耍头 resting	dg_耍头×dg_column	0.0	0.0	0	0.0
+斗拱	dg_耍头 resting	dg_耍头×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_耍头 resting	dg_耍头×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_耍头 resting	dg_耍头×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_耍头 resting	dg_耍头×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_耍头 resting	dg_耍头×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_耍头 resting	dg_耍头×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_耍头 resting	dg_耍头×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_耍头 resting	dg_耍头×dg_令栱	0.0	0.0	0	0.0
+斗拱	dg_耍头 into slot 8 from (0.02, 0.0, 0.02)	dg_耍头×-	0.0	0.0	0	0.0
+斗拱	dg_耍头 into slot 8 from (-0.025, 0.01, -0.01)	dg_耍头×-	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_column	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_令栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_耍头	0.0	0.0	0	0.0
+斗拱	dg_散斗 into slot 9 from (0.02, 0.0, 0.02)	dg_散斗×-	0.0	0.0	0	0.0
+斗拱	dg_散斗 into slot 9 from (-0.025, 0.01, -0.01)	dg_散斗×-	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_column	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_令栱	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_耍头	0.0	0.0	0	0.0
+斗拱	dg_散斗 resting	dg_散斗×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_散斗 into slot 10 from (0.02, 0.0, 0.02)	dg_散斗×-	0.0	0.0	0	0.0
+斗拱	dg_散斗 into slot 10 from (-0.025, 0.01, -0.01)	dg_散斗×-	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 resting	dg_柱头枋×dg_column	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 resting	dg_柱头枋×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 resting	dg_柱头枋×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 resting	dg_柱头枋×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 resting	dg_柱头枋×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 resting	dg_柱头枋×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 resting	dg_柱头枋×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 resting	dg_柱头枋×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 resting	dg_柱头枋×dg_令栱	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 resting	dg_柱头枋×dg_耍头	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 resting	dg_柱头枋×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 resting	dg_柱头枋×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 into slot 11 from (0.02, 0.0, 0.02)	dg_柱头枋×-	0.0	0.0	0	0.0
+斗拱	dg_柱头枋 into slot 11 from (-0.025, 0.01, -0.01)	dg_柱头枋×-	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_column	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_栌斗	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_华栱	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_泥道栱	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_交互斗	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_令栱	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_耍头	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 resting	dg_撩檐枋×dg_柱头枋	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 into slot 12 from (0.02, 0.0, 0.02)	dg_撩檐枋×dg_散斗	0.0	0.0	0	0.0
+斗拱	dg_撩檐枋 into slot 12 from (-0.025, 0.01, -0.01)	dg_撩檐枋×dg_散斗	0.0	0.0	0	0.0
+指南车	ch_立轮 resting (joint)	ch_立轮×ch_body	3.92	3.92	1	0.0
+指南车	ch_立轮 into slot 0 from (0.02, 0.0, 0.02)	ch_立轮×ch_body	0.08	0.0	0	0.08
+指南车	ch_立轮 into slot 0 from (-0.025, 0.01, -0.01)	ch_立轮×ch_body	0.08	0.0	0	0.08
+指南车	ch_立轮 resting (joint)	ch_立轮×ch_body	3.92	3.92	1	0.0
+指南车	ch_立轮 resting	ch_立轮×ch_立轮	0.0	0.0	0	0.0
+指南车	ch_立轮 into slot 1 from (0.02, 0.0, 0.02)	ch_立轮×ch_body	0.08	0.0	0	0.08
+指南车	ch_立轮 into slot 1 from (-0.025, 0.01, -0.01)	ch_立轮×ch_body	0.08	0.0	0	0.08
+指南车	ch_小平轮 resting	ch_小平轮×ch_body	0.0	0.0	0	0.0
+指南车	ch_小平轮 resting	ch_小平轮×ch_立轮	0.0	0.0	0	0.0
+指南车	ch_小平轮 resting	ch_小平轮×ch_立轮	0.0	0.0	0	0.0
+指南车	ch_小平轮 into slot 2 from (0.02, 0.0, 0.02)	ch_小平轮×-	0.0	0.0	0	0.0
+指南车	ch_小平轮 into slot 2 from (-0.025, 0.01, -0.01)	ch_小平轮×-	0.0	0.0	0	0.0
+指南车	ch_小平轮 resting	ch_小平轮×ch_body	0.0	0.0	0	0.0
+指南车	ch_小平轮 resting	ch_小平轮×ch_立轮	0.0	0.0	0	0.0
+指南车	ch_小平轮 resting	ch_小平轮×ch_立轮	0.0	0.0	0	0.0
+指南车	ch_小平轮 resting	ch_小平轮×ch_小平轮	0.0	0.0	0	0.0
+指南车	ch_小平轮 into slot 3 from (0.02, 0.0, 0.02)	ch_小平轮×-	0.0	0.0	0	0.0
+指南车	ch_小平轮 into slot 3 from (-0.025, 0.01, -0.01)	ch_小平轮×-	0.0	0.0	0	0.0
+指南车	ch_大平轮 resting	ch_大平轮×ch_body	0.0	0.0	0	0.0
+指南车	ch_大平轮 resting	ch_大平轮×ch_立轮	0.0	0.0	0	0.0
+指南车	ch_大平轮 resting	ch_大平轮×ch_立轮	0.0	0.0	0	0.0
+指南车	ch_大平轮 resting	ch_大平轮×ch_小平轮	0.36	0.0	0	0.36
+指南车	ch_大平轮 resting	ch_大平轮×ch_小平轮	0.36	0.0	0	0.36
+指南车	ch_大平轮 into slot 4 from (0.02, 0.0, 0.02)	ch_大平轮×ch_小平轮	0.36	0.0	0	0.36
+指南车	ch_大平轮 into slot 4 from (-0.025, 0.01, -0.01)	ch_大平轮×ch_小平轮	0.36	0.0	0	0.36
+指南车	ch_木人 resting	ch_木人×ch_body	0.0	0.0	0	0.0
+指南车	ch_木人 resting	ch_木人×ch_立轮	0.0	0.0	0	0.0
+指南车	ch_木人 resting	ch_木人×ch_立轮	0.0	0.0	0	0.0
+指南车	ch_木人 resting	ch_木人×ch_小平轮	0.0	0.0	0	0.0
+指南车	ch_木人 resting	ch_木人×ch_小平轮	0.0	0.0	0	0.0
+指南车	ch_木人 resting	ch_木人×ch_大平轮	0.0	0.0	0	0.0
+指南车	ch_木人 into slot 5 from (0.02, 0.0, 0.02)	ch_木人×-	0.0	0.0	0	0.0
+指南车	ch_木人 into slot 5 from (-0.025, 0.01, -0.01)	ch_木人×-	0.0	0.0	0	0.0
+水运仪象台	wc_退水壶 resting	wc_退水壶×wc_frame	0.0	0.0	0	0.0
+水运仪象台	wc_退水壶 into slot 0 from (0.0, 0.0, 0.03)	wc_退水壶×-	0.0	0.0	0	0.0
+水运仪象台	wc_退水壶 into slot 0 from (0.02, 0.01, 0.02)	wc_退水壶×-	0.0	0.0	0	0.0
+水运仪象台	wc_枢轮 resting	wc_枢轮×wc_frame	0.0	0.0	0	0.0
+水运仪象台	wc_枢轮 resting	wc_枢轮×wc_退水壶	0.0	0.0	0	0.0
+水运仪象台	wc_枢轮 into slot 1 from (0.0, 0.0, 0.03)	wc_枢轮×-	0.0	0.0	0	0.0
+水运仪象台	wc_枢轮 into slot 1 from (0.02, 0.01, 0.02)	wc_枢轮×-	0.0	0.0	0	0.0
+水运仪象台	wc_天池 resting	wc_天池×wc_frame	0.0	0.0	0	0.0
+水运仪象台	wc_天池 resting	wc_天池×wc_退水壶	0.0	0.0	0	0.0
+水运仪象台	wc_天池 resting	wc_天池×wc_枢轮	0.0	0.0	0	0.0
+水运仪象台	wc_天池 into slot 2 from (0.0, 0.0, 0.03)	wc_天池×-	0.0	0.0	0	0.0
+水运仪象台	wc_天池 into slot 2 from (0.02, 0.01, 0.02)	wc_天池×-	0.0	0.0	0	0.0
+水运仪象台	wc_天衡 resting	wc_天衡×wc_frame	0.0	0.0	0	0.0
+水运仪象台	wc_天衡 resting	wc_天衡×wc_退水壶	0.0	0.0	0	0.0
+水运仪象台	wc_天衡 resting	wc_天衡×wc_枢轮	0.0	0.0	0	0.0
+水运仪象台	wc_天衡 resting	wc_天衡×wc_天池	0.0	0.0	0	0.0
+水运仪象台	wc_天衡 into slot 3 from (0.0, 0.0, 0.03)	wc_天衡×-	0.0	0.0	0	0.0
+水运仪象台	wc_天衡 into slot 3 from (0.02, 0.01, 0.02)	wc_天衡×-	0.0	0.0	0	0.0
+水运仪象台	wc_天关 resting	wc_天关×wc_frame	0.0	0.0	0	0.0
+水运仪象台	wc_天关 resting	wc_天关×wc_退水壶	0.0	0.0	0	0.0
+水运仪象台	wc_天关 resting	wc_天关×wc_枢轮	0.0	0.0	0	0.0
+水运仪象台	wc_天关 resting	wc_天关×wc_天池	0.0	0.0	0	0.0
+水运仪象台	wc_天关 resting	wc_天关×wc_天衡	0.0	0.0	0	0.0
+水运仪象台	wc_天关 into slot 4 from (0.0, 0.0, 0.03)	wc_天关×-	0.0	0.0	0	0.0
+水运仪象台	wc_天关 into slot 4 from (0.02, 0.01, 0.02)	wc_天关×-	0.0	0.0	0	0.0
+水运仪象台	wc_左天锁 resting	wc_左天锁×wc_frame	0.0	0.0	0	0.0
+水运仪象台	wc_左天锁 resting	wc_左天锁×wc_退水壶	0.0	0.0	0	0.0
+水运仪象台	wc_左天锁 resting	wc_左天锁×wc_枢轮	0.0	0.0	0	0.0
+水运仪象台	wc_左天锁 resting	wc_左天锁×wc_天池	0.0	0.0	0	0.0
+水运仪象台	wc_左天锁 resting	wc_左天锁×wc_天衡	0.0	0.0	0	0.0
+水运仪象台	wc_左天锁 resting	wc_左天锁×wc_天关	0.0	0.0	0	0.0
+水运仪象台	wc_左天锁 into slot 5 from (0.0, 0.0, 0.03)	wc_左天锁×-	0.0	0.0	0	0.0
+水运仪象台	wc_左天锁 into slot 5 from (0.02, 0.01, 0.02)	wc_左天锁×-	0.0	0.0	0	0.0
+水运仪象台	wc_右天锁 resting	wc_右天锁×wc_frame	0.0	0.0	0	0.0
+水运仪象台	wc_右天锁 resting	wc_右天锁×wc_退水壶	0.0	0.0	0	0.0
+水运仪象台	wc_右天锁 resting	wc_右天锁×wc_枢轮	0.0	0.0	0	0.0
+水运仪象台	wc_右天锁 resting	wc_右天锁×wc_天池	0.0	0.0	0	0.0
+水运仪象台	wc_右天锁 resting	wc_右天锁×wc_天衡	0.0	0.0	0	0.0
+水运仪象台	wc_右天锁 resting	wc_右天锁×wc_天关	0.0	0.0	0	0.0
+水运仪象台	wc_右天锁 resting	wc_右天锁×wc_左天锁	0.0	0.0	0	0.0
+水运仪象台	wc_右天锁 into slot 6 from (0.0, 0.0, 0.03)	wc_右天锁×-	0.0	0.0	0	0.0
+水运仪象台	wc_右天锁 into slot 6 from (0.02, 0.01, 0.02)	wc_右天锁×-	0.0	0.0	0	0.0
+水运仪象台	wc_浑象 resting	wc_浑象×wc_frame	0.0	0.0	0	0.0
+水运仪象台	wc_浑象 resting	wc_浑象×wc_退水壶	0.0	0.0	0	0.0
+水运仪象台	wc_浑象 resting	wc_浑象×wc_枢轮	0.0	0.0	0	0.0
+水运仪象台	wc_浑象 resting	wc_浑象×wc_天池	0.0	0.0	0	0.0
+水运仪象台	wc_浑象 resting	wc_浑象×wc_天衡	0.0	0.0	0	0.0
+水运仪象台	wc_浑象 resting	wc_浑象×wc_天关	0.0	0.0	0	0.0
+水运仪象台	wc_浑象 resting	wc_浑象×wc_左天锁	0.0	0.0	0	0.0
+水运仪象台	wc_浑象 resting	wc_浑象×wc_右天锁	0.0	0.0	0	0.0
+水运仪象台	wc_浑象 into slot 7 from (0.0, 0.0, 0.03)	wc_浑象×-	0.0	0.0	0	0.0
+水运仪象台	wc_浑象 into slot 7 from (0.02, 0.01, 0.02)	wc_浑象×-	0.0	0.0	0	0.0
+总机关匣	fc_鲁班尺 resting	fc_鲁班尺×fc_body	0.0	0.0	0	0.0
+总机关匣	fc_鲁班尺 into slot 0 from (0.02, 0.0, 0.02)	fc_鲁班尺×-	0.0	0.0	0	0.0
+总机关匣	fc_鲁班尺 into slot 0 from (-0.025, 0.01, -0.01)	fc_鲁班尺×-	0.0	0.0	0	0.0
+总机关匣	fc_铜印 resting	fc_铜印×fc_body	0.0	0.0	0	0.0
+总机关匣	fc_铜印 resting	fc_铜印×fc_鲁班尺	0.0	0.0	0	0.0
+总机关匣	fc_铜印 into slot 1 from (0.02, 0.0, 0.02)	fc_铜印×-	0.0	0.0	0	0.0
+总机关匣	fc_铜印 into slot 1 from (-0.025, 0.01, -0.01)	fc_铜印×-	0.0	0.0	0	0.0
+总机关匣	fc_星图 resting	fc_星图×fc_body	0.0	0.0	0	0.0
+总机关匣	fc_星图 resting	fc_星图×fc_鲁班尺	0.0	0.0	0	0.0
+总机关匣	fc_星图 resting	fc_星图×fc_铜印	0.0	0.0	0	0.0
+总机关匣	fc_星图 into slot 2 from (0.02, 0.0, 0.02)	fc_星图×-	0.0	0.0	0	0.0
+总机关匣	fc_星图 into slot 2 from (-0.025, 0.01, -0.01)	fc_星图×-	0.0	0.0	0	0.0
+被中香炉	cs_下半球 resting	cs_下半球×cs_stand	0.0	0.0	0	0.0
+被中香炉	cs_下半球 into slot 0 from (0.02, 0.0, 0.02)	cs_下半球×-	0.0	0.0	0	0.0
+被中香炉	cs_下半球 into slot 0 from (-0.025, 0.01, -0.01)	cs_下半球×-	0.0	0.0	0	0.0
+被中香炉	cs_外环 resting	cs_外环×cs_stand	0.0	0.0	0	0.0
+被中香炉	cs_外环 resting (joint)	cs_外环×cs_下半球	2.75	2.75	1	0.0
+被中香炉	cs_外环 into slot 1 from (0.02, 0.0, 0.02)	cs_外环×-	0.0	0.0	0	0.0
+被中香炉	cs_外环 into slot 1 from (-0.025, 0.01, -0.01)	cs_外环×-	0.0	0.0	0	0.0
+被中香炉	cs_内环 fitted in from (0.02, 0.0, 0.02)	-	0.0	0.0	0	0.0
+被中香炉	cs_内环 fitted in from (-0.025, 0.01, -0.01)	-	0.0	0.0	0	0.0
+被中香炉	cs_香盂 fitted in from (0.02, 0.0, 0.02)	-	0.0	0.0	0	0.0
+被中香炉	cs_香盂 fitted in from (-0.025, 0.01, -0.01)	-	0.0	0.0	0	0.0
+被中香炉	resting (joint)	cs_下半球×cs_外环	2.75	2.75	1	0.0
+被中香炉	resting (joint)	cs_外环×cs_上半球	2.67	2.67	1	0.0
+被中香炉	resting (joint)	cs_外环×cs_内环	2.05	2.05	1	0.0
+被中香炉	resting (joint)	cs_内环×cs_香盂	2.23	2.23	1	0.0
+被中香炉	resting (joint)	cs_下半球×cs_上半球	1.61	1.61	1	0.0
+被中香炉	cs_上半球 into slot 4 from (0.02, 0.0, 0.02)	-	0.0	0.0	0	0.0
+被中香炉	cs_上半球 into slot 4 from (-0.025, 0.01, -0.01)	-	0.0	0.0	0	0.0
+斗拱	fixed part inside its box	dg_column×BuildProps	0.0	0.0	0	0.0
+被中香炉	fixed part inside its box	cs_stand×BuildProps	0.0	0.0	0	0.0
+指南车	fixed part inside its box	ch_body×BuildProps	0.0	0.0	0	0.0
+水运仪象台	fixed part inside its box	wc_frame×BuildProps	0.0	0.0	0	0.0
+总机关匣	fixed part inside its box	fc_body×BuildProps	0.0	0.0	0	0.0
+被中香炉	rolling	cs_stand×cs_下半球	0.16	0.0	0	0.16
+被中香炉	rolling	cs_stand×cs_上半球	0.0	0.0	0	0.0
+被中香炉	rolling	cs_stand×cs_外环	0.0	0.0	0	0.0
+被中香炉	rolling	cs_stand×cs_内环	0.0	0.0	0	0.0
+被中香炉	rolling	cs_stand×cs_香盂	0.0	0.0	0	0.0
+被中香炉	rolling (joint)	cs_上半球×cs_下半球	1.61	1.61	1	0.0
+被中香炉	rolling (joint)	cs_下半球×cs_外环	2.75	2.75	1	0.0
+被中香炉	rolling	cs_下半球×cs_内环	0.0	0.0	0	0.0
+被中香炉	rolling	cs_下半球×cs_香盂	0.0	0.0	0	0.0
+被中香炉	rolling (joint)	cs_上半球×cs_外环	2.67	2.67	1	-0.0
+被中香炉	rolling	cs_上半球×cs_内环	0.0	0.0	0	0.0
+被中香炉	rolling	cs_上半球×cs_香盂	0.0	0.0	0	0.0
+被中香炉	rolling (joint)	cs_内环×cs_外环	2.04	2.05	1	-0.01
+被中香炉	rolling	cs_外环×cs_香盂	0.0	0.0	0	0.0
+被中香炉	rolling (joint)	cs_内环×cs_香盂	2.23	2.23	1	0.0
+水运仪象台	wheel turning	wc_枢轮×wc_frame	0.0	0.0	0	0.0
+水运仪象台	wheel turning	wc_枢轮×wc_退水壶	0.26	0.0	0	0.26
+水运仪象台	wheel turning	wc_枢轮×wc_天池	0.0	0.0	0	0.0
+水运仪象台	wheel turning	wc_枢轮×wc_天衡	0.0	0.0	0	0.0
+水运仪象台	wheel turning	wc_枢轮×wc_天关	0.0	0.0	0	0.0
+水运仪象台	wheel turning	wc_枢轮×wc_左天锁	0.0	0.0	0	0.0
+水运仪象台	wheel turning	wc_枢轮×wc_右天锁	0.0	0.0	0	0.0
+水运仪象台	wheel turning	wc_枢轮×wc_浑象	0.0	0.0	0	0.0
+水运仪象台	天衡 dipping	wc_天衡×wc_frame	0.0	0.0	0	0.0
+水运仪象台	天衡 dipping	wc_天衡×wc_退水壶	0.0	0.0	0	0.0
+水运仪象台	天衡 dipping	wc_天衡×wc_枢轮	0.0	0.0	0	0.0
+水运仪象台	天衡 dipping	wc_天衡×wc_天池	0.0	0.0	0	0.0
+水运仪象台	天衡 dipping	wc_天衡×wc_天关	0.0	0.0	0	0.0
+水运仪象台	天衡 dipping	wc_天衡×wc_左天锁	0.0	0.0	0	0.0
+水运仪象台	天衡 dipping	wc_天衡×wc_右天锁	0.0	0.0	0	0.0
+水运仪象台	天衡 dipping	wc_天衡×wc_浑象	0.0	0.0	0	0.0
+总机关匣	door opening	fc_door×fc_body	0.02	0.0	0	0.02
+总机关匣	plaque coming out	fc_plaque×fc_body	0.0	0.0	0	0.0
+总机关匣	plaque past the door	fc_plaque×fc_door	0.0	0.0	0	0.0

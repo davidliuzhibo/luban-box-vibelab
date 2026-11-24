@@ -3,20 +3,23 @@ package com.vrgames.lubanbox.render
 import com.pico.spatial.core.ecs.Entity
 import com.pico.spatial.core.ecs.resource.MeshResource
 import com.pico.spatial.core.math.EulerAngles
+import com.pico.spatial.core.math.Quat
 import com.pico.spatial.core.math.Vector3
 import com.vrgames.lubanbox.core.Assembly
 import com.vrgames.lubanbox.core.Axis
 import com.vrgames.lubanbox.core.Boxes
 import com.vrgames.lubanbox.core.Bronze
 import com.vrgames.lubanbox.core.Burr
+import com.vrgames.lubanbox.core.BurrExit
 import com.vrgames.lubanbox.core.Burrs
 import com.vrgames.lubanbox.core.Celestial
 import com.vrgames.lubanbox.core.Cell
 import com.vrgames.lubanbox.core.Dougong
 import com.vrgames.lubanbox.core.Klotski
 import com.vrgames.lubanbox.core.KlotskiBoards
-import com.vrgames.lubanbox.core.PuzzleBox
+import com.vrgames.lubanbox.core.Aabb
 import com.vrgames.lubanbox.core.RotaryPuzzle
+import com.vrgames.lubanbox.core.TurnAxis
 import com.vrgames.lubanbox.core.Vec3
 import com.vrgames.lubanbox.core.Workshop
 import kotlin.math.sin
@@ -34,6 +37,16 @@ abstract class Scene(protected val assets: Assets) {
     /** Fixed props, added to the relic's frame before the mechanism. */
     open fun props(frame: Entity) {}
     open fun slideLooks(p: com.vrgames.lubanbox.core.SlidePuzzle): List<PieceLook> = emptyList()
+    /** How pieces that come out of the mechanism get to where they lie (the burr's sticks). */
+    open fun exits(p: com.vrgames.lubanbox.core.SlidePuzzle): BurrExit? = null
+    /** v0.10.1: the scene is moving parts itself (nothing else may move until it is done). */
+    open val busy: Boolean get() = false
+    /** v0.10.1: z of the open front of a build inside a roofed frame (parts slide in from there); null: from above. */
+    open val frontOpening: Double? = null
+    /** Sideways offset (x) of the lane a part slides in along, when it must pass something on its way in. */
+    open fun frontShift(slot: com.vrgames.lubanbox.core.Slot) = 0.0
+    /** Whether the chapter tokens lie on the bench while this relic is out (the 斗拱 needs the room for its parts). */
+    open val showsTokens = true
     open fun dialLooks(p: RotaryPuzzle): List<DialLook> = emptyList()
     open fun partVisual(type: String): Entity = assets.box(Vector3(0.04f), Vector3(0f, 0.02f, 0f), assets.woodMid)
     /** Loose parts on the bench: place (object frame, before the floor height) and yaw. */
@@ -107,9 +120,16 @@ class Beam(assets: Assets, private val parent: Entity, material: com.pico.spatia
 // ---- Chapter one ---------------------------------------------------------------------------------
 
 class LockScene(assets: Assets) : Scene(assets) {
-    // The lock floats at a comfortable height so sticks can slide out downward too.
-    override val lift = 0.2f
+    /**
+     * The lock floats this high over the turntable. v0.10 (PICO 2026-11-23): 0.2 m let a stick coming out
+     * downward reach through the turntable and the sticks lying on it. A stick can reach 14 cells (35 cm)
+     * below the lock's middle; with 0.45 m it stays 10 cm above the turntable and 4.8 cm above the
+     * sticks lying there (BurrExitTest checks every way out).
+     */
+    override val lift = Burrs.LIFT.toFloat()
     override fun turns(solved: Boolean) = true
+
+    override fun exits(p: com.vrgames.lubanbox.core.SlidePuzzle): BurrExit? = (p as? Burr)?.let { BurrExit(it, tableY = -lift.toDouble()) }
 
     override fun slideLooks(p: com.vrgames.lubanbox.core.SlidePuzzle): List<PieceLook> {
         val b = p as Burr
@@ -124,23 +144,9 @@ class LockScene(assets: Assets) : Scene(assets) {
                 for (c in piece.cells) addChild(assets.box(Vector3(cell.toFloat() * 0.98f), cellCenter(c, cell), m))
             }
             val hit = piece.cells.map { c -> Vector3(cell.toFloat()) to cellCenter(c, cell) }
-            // Out of the lock, the sticks lie side by side on the turntable under it, along x.
-            val center = piece.cells.fold(Vec3.ZERO) { s, c -> s + Vec3(c.x + 0.5, c.y + 0.5, c.z + 0.5) } * (cell / piece.cells.size)
-            val turn = when (piece.axis) {
-                Axis.X -> Vec3.ZERO
-                Axis.Y -> Vec3(0.0, 0.0, 90.0)
-                Axis.Z -> Vec3(0.0, 90.0, 0.0)
-            }
-            val spot = Vec3(0.0, -lift + cell + 0.002, -0.14 + 0.056 * i)
-            PieceLook(visual, hit, cell, restPos = spot - quarterTurned(center, turn), restRot = turn)
+            // Out of the lock, the sticks are carried round it to the turntable (BurrExit).
+            PieceLook(visual, hit, cell)
         }
-    }
-
-    /** [v] turned by a single quarter turn about y or z (the rest poses use nothing else). */
-    private fun quarterTurned(v: Vec3, deg: Vec3): Vec3 = when {
-        deg.z != 0.0 -> Vec3(-v.y, v.x, v.z)
-        deg.y != 0.0 -> Vec3(v.z, v.y, -v.x)
-        else -> v
     }
 }
 
@@ -185,39 +191,41 @@ class KlotskiScene(assets: Assets) : Scene(assets) {
     }
 }
 
-/** A box-like mechanism of sliding panels: [prefix]body and [prefix]0..n, with stand-in boxes. */
+/**
+ * A box-like mechanism of sliding panels: [prefix]body and [prefix]0..n, with stand-in boxes. Each panel is pinched
+ * by the same boxes the rules collide (v0.10.1: [Aabb] lists, see [com.vrgames.lubanbox.core.Solid]).
+ */
 open class PanelScene(
     assets: Assets,
-    private val prefix: String,
-    private val body: Pair<Vec3, Vec3>,
-    private val boxes: List<Pair<Vec3, Vec3>>,
+    private val bodyNode: String,
+    private val panelNode: (Int) -> String,
+    private val body: List<Aabb>,
+    private val parts: List<List<Aabb>>,
     private val step: (Int) -> Double,
 ) : Scene(assets) {
     override fun turns(solved: Boolean) = true
 
     override fun props(frame: Entity) {
-        val (size, center) = body
-        frame.addChild(assets.piece("${prefix}body") ?: assets.box(size.toVector3(), center.toVector3(), assets.woodDark))
+        frame.addChild(assets.piece(bodyNode) ?: Entity().apply { for (b in body) addChild(assets.box(b.size(), b.mid(), assets.woodDark)) })
     }
 
     override fun slideLooks(p: com.vrgames.lubanbox.core.SlidePuzzle): List<PieceLook> = (0 until p.pieceCount).map { i ->
-        val (size, center) = boxes[i]
-        val visual = assets.piece("$prefix$i") ?: assets.box(size.toVector3(), center.toVector3(), if (i % 2 == 0) assets.woodMid else assets.woodLight)
-        PieceLook(visual, listOf(size.toVector3() to center.toVector3()), step(i))
+        val visual = assets.piece(panelNode(i)) ?: Entity().apply {
+            for (b in parts[i]) addChild(assets.box(b.size(), b.mid(), if (i % 2 == 0) assets.woodMid else assets.woodLight))
+        }
+        PieceLook(visual, parts[i].map { it.size() to it.mid() }, step(i))
     }
 }
 
-class BoxScene(assets: Assets) : PanelScene(assets, "box_", Boxes.body, Boxes.panelBoxes, Boxes::stepMeters) {
-    override fun props(frame: Entity) {
-        val (size, center) = Boxes.body
-        frame.addChild(assets.piece("box_body") ?: assets.box(size.toVector3(), center.toVector3(), assets.woodDark))
-    }
+private fun Aabb.size() = Vector3((hi.x - lo.x).toFloat(), (hi.y - lo.y).toFloat(), (hi.z - lo.z).toFloat())
+private fun Aabb.mid() = center.toVector3()
 
-    override fun slideLooks(p: com.vrgames.lubanbox.core.SlidePuzzle): List<PieceLook> = (0 until p.pieceCount).map { i ->
-        val (size, center) = Boxes.panelBoxes[i]
-        val visual = assets.piece("panel$i") ?: assets.box(size.toVector3(), center.toVector3(), if (i == Boxes.LID) assets.woodMid else assets.woodLight)
-        PieceLook(visual, listOf(size.toVector3() to center.toVector3()), Boxes.stepMeters(i))
-    }
+/**
+ * The 鲁班盒 stands on its plinth (part of box_body) on the turntable. v0.10.1: its frame is raised by the plinth so
+ * the left end can drop 2 cm beside it (it used to sink into the turntable).
+ */
+class BoxScene(assets: Assets) : PanelScene(assets, "box_body", { "panel$it" }, listOf(Boxes.body, Boxes.plinth), Boxes.parts, Boxes::stepMeters) {
+    override val lift = Boxes.LIFT.toFloat()
 }
 
 class DougongScene(assets: Assets) : Scene(assets) {
@@ -244,14 +252,11 @@ class DougongScene(assets: Assets) : Scene(assets) {
         assets.box(size, Vector3(0f, size.y / 2, 0f), if (type.endsWith("斗")) assets.woodDark else assets.woodLight)
     }
 
-    /** In Dougong.parts order; long arms lie along z. */
-    override fun tray(a: Assembly) = listOf(
-        Vec3(-0.30, 0.0, -0.12) to 0.0, Vec3(-0.30, 0.0, 0.10) to 0.0, Vec3(-0.40, 0.0, 0.0) to 90.0,
-        Vec3(0.27, 0.0, -0.18) to 0.0, Vec3(0.33, 0.0, -0.18) to 0.0, Vec3(0.39, 0.0, -0.18) to 0.0,
-        Vec3(0.27, 0.0, -0.11) to 0.0, Vec3(0.33, 0.0, -0.11) to 0.0, Vec3(0.40, 0.0, -0.11) to 0.0,
-        Vec3(0.27, 0.0, 0.07) to 90.0, Vec3(0.35, 0.0, 0.07) to 0.0, Vec3(0.45, 0.0, 0.05) to 90.0,
-        Vec3(-0.47, 0.0, 0.0) to 90.0,
-    )
+    /** In Dougong.parts order (v0.10: the long arms lie lengthwise and must be turned; see [Dougong.tray]). */
+    override fun tray(a: Assembly) = Dougong.tray
+
+    /** The tokens' corner of the bench holds 斗拱 parts; the tokens come back with the next relic. */
+    override val showsTokens = false
 
     /**
      * Once built, the bracket set appears again at full size (five times) above the player's head,
@@ -294,7 +299,7 @@ class WordLockScene(assets: Assets) : Scene(assets) {
     }
 }
 
-class PadlockScene(assets: Assets) : PanelScene(assets, "pl_", Bronze.padlockBody, Bronze.padlockBoxes, Bronze::padlockStep)
+class PadlockScene(assets: Assets) : PanelScene(assets, "pl_body", { "pl_$it" }, Bronze.padlockBodyBoxes, Bronze.padlockParts, Bronze::padlockStep)
 
 class CenserScene(assets: Assets) : Scene(assets) {
     override val lift = 0.03f
@@ -307,23 +312,156 @@ class CenserScene(assets: Assets) : Scene(assets) {
     override fun partVisual(type: String): Entity = assets.piece("cs_$type")
         ?: model(assets.unitSphere, assets.brass).apply { setScale(if (type == Bronze.BOWL) 0.03f else 0.06f) }
 
+    // ---- Fitting the gimbal (v0.10.1) -------------------------------------------------------------------------
+    //
+    // At rest the outer ring, the inner ring and the bowl stand in one upright plane (x-y), nested, each held by the
+    // pins of the next. A rigid ring cannot go into a closed ring, so, as a gimbal is put together:
+    // - the inner ring: it rises over the shell and comes over the middle; the outer ring turns on its pins (about x)
+    //   until it lies flat; the inner ring goes down through it edge-on; the outer ring turns back up, and its sockets
+    //   close over the inner ring's pins.
+    // - the bowl: it rises, comes over the middle and turns on its side (pins upright); both rings turn flat together;
+    //   it goes down through them; turns its pins into the inner ring's sockets; the rings turn back up around it.
+    // Nothing else may be moved meanwhile ([busy]). tools/audit_meshes.py checks every pose of this on the meshes.
+
+    private var job: Fit? = null
+    private val started = HashSet<Int>()
+    private var looked = false
+
+    private class Fit(val part: Int, val bowl: Boolean, val from: Vec3, val outer: Int, val inner: Int) {
+        var age = 0.0
+    }
+
+    override val busy get() = job != null
+
+    private fun fitStep(v: AssemblyView, f: Fit) {
+        val c = Vec3(0.0, Bronze.CENSER_R, 0.0)
+        val high = Vec3(0.0, FIT_HIGH, 0.0)
+        val t = f.age
+        fun ease(x: Double) = x.coerceIn(0.0, 1.0).let { it * it * (3 - 2 * it) }
+        // Phase boundaries (seconds).
+        val rise = 0.5
+        val over = rise + 0.6
+        val flip = over + 0.7
+        val down = flip + 0.7
+        val turn = if (f.bowl) down + 0.5 else down
+        val back = turn + 0.7
+        val partTurn = if (f.bowl) SlideView.quat(TurnAxis.Z, 90.0) else SlideView.quat(TurnAxis.Y, 90.0)
+        val up = Vec3(f.from.x, maxOf(f.from.y, FIT_HIGH), f.from.z)
+        // The part.
+        val p = when {
+            t < rise -> f.from + (up - f.from) * ease(t / rise)
+            t < over -> up + (high - up) * ease((t - rise) / (over - rise))
+            t < flip -> high
+            t < down -> high + (c - high) * ease((t - flip) / (down - flip))
+            else -> c
+        }
+        val q = when {
+            !f.bowl -> partTurn
+            t < rise -> Quat(0f, 0f, 0f, 1f)
+            t < over -> SlideView.quat(TurnAxis.Z, 90.0 * ease((t - rise) / (over - rise)))
+            t < down -> partTurn
+            t < turn -> SlideView.quat(TurnAxis.Z, 90.0 * (1 - ease((t - down) / (turn - down))))
+            else -> Quat(0f, 0f, 0f, 1f)
+        }
+        v.pose(f.part, p, q)
+        // The rings: flat while the part goes in, then back up.
+        val tilt = 90.0 * when {
+            t < over -> 0.0
+            t < flip -> ease((t - over) / (flip - over))
+            t < turn -> 1.0
+            else -> 1 - ease((t - turn) / (back - turn))
+        }
+        v.pose(f.outer, c, SlideView.quat(TurnAxis.X, tilt))
+        if (f.bowl) v.pose(f.inner, c, qMul(SlideView.quat(TurnAxis.X, tilt), SlideView.quat(TurnAxis.Y, 90.0)))
+        if (t >= back) {
+            v.giveBack(f.part)
+            v.giveBack(f.outer)
+            if (f.bowl) v.giveBack(f.inner)
+            job = null
+        }
+    }
+
+    /** Starts fitting a ring or the bowl that has just been let go over its slot; runs the fitting under way. */
+    private fun fitting(dt: Double, v: AssemblyView) {
+        job?.let { f ->
+            f.age += dt
+            debugHoldAt?.let { f.age = minOf(f.age, it) }
+            fitStep(v, f)
+            return
+        }
+        val parts = v.assembly.parts
+        // Parts already in when the relic was put on the bench are not fitted again.
+        if (!looked) {
+            looked = true
+            for (i in parts.indices) if (v.assembly.isPlaced(i)) started += i
+        }
+        for (i in parts.indices) {
+            if (!v.assembly.isPlaced(i) || i in started) continue
+            started += i
+            val type = parts[i]
+            if (type != Bronze.RING_IN && type != Bronze.BOWL) continue
+            val outer = parts.indices.first { parts[it] == Bronze.RING_OUT }
+            val inner = parts.indices.first { parts[it] == Bronze.RING_IN }
+            val from = v.takeOver(i)
+            v.takeOver(outer)
+            if (type == Bronze.BOWL) v.takeOver(inner)
+            job = Fit(i, type == Bronze.BOWL, from, outer, inner)
+            android.util.Log.i("LubanGeo", "censer fit $type: rings turn flat, it goes in edge-on, rings turn back")
+            return
+        }
+    }
+
     /**
-     * Once put together the censer rolls about on its stand, and the bowl inside stays level: the
-     * shell tumbles, the outer ring follows it about one axis only, the inner ring hardly moves.
+     * Once put together the censer rolls about in its cradle, and the bowl inside stays level. v0.10.1: as a real
+     * gimbal, every pin staying in its socket: the inner ring turns on the bowl's pins (x), the outer ring on the inner
+     * ring's pins (y), the shell on the outer ring's pins (x), all about the ball's middle. (0.10.0 turned the outer
+     * ring about z, so its pins left their sockets, and turned the lower half about its foot, away from the upper.)
      */
     override fun frame(dt: Double, ws: Workshop, bench: Bench, solvedFor: Double) {
-        if (solvedFor < 0) return
         val v = bench.build ?: return
-        val a = 40 * sin(solvedFor * 1.3) * (solvedFor / 2).coerceAtMost(1.0)
-        val b = 30 * sin(solvedFor * 0.9 + 1) * (solvedFor / 2).coerceAtMost(1.0)
+        if (solvedFor < 0 || job != null) {
+            fitting(dt, v)
+            return
+        }
+        val ramp = (solvedFor / 2).coerceAtMost(1.0)
+        val t1 = 35 * sin(solvedFor * 1.3) * ramp
+        val t2 = 30 * sin(solvedFor * 0.9 + 1) * ramp
+        val t3 = 25 * sin(solvedFor * 0.7 + 2) * ramp
+        val inner = qMul(SlideView.quat(TurnAxis.X, t1), SlideView.quat(TurnAxis.Y, 90.0))
+        val outer = qMul(SlideView.quat(TurnAxis.X, t1), SlideView.quat(TurnAxis.Y, t2))
+        val shell = qMul(outer, SlideView.quat(TurnAxis.X, t3))
+        val c = Vec3(0.0, Bronze.CENSER_R, 0.0)
         for ((i, type) in v.assembly.parts.withIndex()) {
-            val e = when (type) {
-                Bronze.HEMI_LOW, Bronze.HEMI_HIGH -> EulerAngles(a.toFloat(), 0f, b.toFloat())
-                Bronze.RING_OUT -> EulerAngles(0f, 0f, b.toFloat())
-                Bronze.RING_IN -> EulerAngles(0f, 90f, 0f)
-                else -> EulerAngles(0f, 0f, 0f)
+            val q = when (type) {
+                Bronze.HEMI_LOW, Bronze.HEMI_HIGH -> shell
+                Bronze.RING_OUT -> outer
+                Bronze.RING_IN -> inner
+                else -> Quat(0f, 0f, 0f, 1f)
             }
-            v.holder(i).transform().eulerAngles = e
+            v.holder(i).transform().quaternion = q
+            // The lower half's origin is its bottom: turn it about the ball's middle like the rest.
+            if (type == Bronze.HEMI_LOW) v.holder(i).setPos(c + qRotate(q, Vec3(0.0, -Bronze.CENSER_R, 0.0)))
+        }
+    }
+
+    companion object {
+        /** Height of the part's middle while it waits over the ball for the rings to turn flat (clear of the upright outer ring). */
+        const val FIT_HIGH = Bronze.CENSER_R + 0.13
+
+        /** Debug only (AutoPilot): a fitting stops this many seconds in (for a screenshot). */
+        @Volatile var debugHoldAt: Double? = null
+
+        /** Hamilton product a·b (b first, then a). */
+        fun qMul(a: Quat, b: Quat) = Quat(
+            a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+            a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+            a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+            a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+        )
+
+        fun qRotate(q: Quat, v: Vec3): Vec3 {
+            val p = qMul(qMul(q, Quat(v.x.toFloat(), v.y.toFloat(), v.z.toFloat(), 0f)), Quat(-q.x, -q.y, -q.z, q.w))
+            return Vec3(p.x.toDouble(), p.y.toDouble(), p.z.toDouble())
         }
     }
 }
@@ -438,6 +576,14 @@ class ArmillaryScene(assets: Assets) : Scene(assets) {
 }
 
 class WaterClockScene(assets: Assets) : Scene(assets) {
+    /**
+     * The roof (to z 0.11, over the front posts at 0.096) is over everything, so parts slide in from the front. A part in
+     * the hand rides over the whole frame and goes in from there: out in front of the roof, down, and in.
+     */
+    override val frontOpening: Double? = 0.11
+    /** The 天衡 comes in 3 cm to the right and moves left once it is behind the 天池 (v0.10.1). */
+    override fun frontShift(slot: com.vrgames.lubanbox.core.Slot) = if (slot.type == Celestial.BEAM) 0.03 else 0.0
+
     override fun props(frame: Entity) {
         assets.piece("wc_frame")?.let { frame.addChild(it) }
     }
@@ -474,10 +620,11 @@ class ChestScene(assets: Assets) : Scene(assets) {
 
     override fun props(frame: Entity) {
         assets.piece("fc_body")?.let { frame.addChild(it) }
-        // The front door hangs on a hinge along its bottom edge.
+        // The front door hangs on a hinge along its bottom edge. v0.10.1: the hinge is the door's own bottom back edge,
+        // in front of the brass trim (the door overlapped the trim by 5 mm, and swung into the turntable).
         door = Entity().apply {
-            setPos(Vector3(0f, 0f, 0.1f))
-            addChild(assets.piece("fc_door") ?: assets.box(Vector3(0.28f, 0.11f, 0.01f), Vector3(0f, 0.055f, 0.005f), assets.woodDark))
+            setPos(Vector3(0f, DOOR_HINGE_Y, 0.105f))
+            addChild((assets.piece("fc_door") ?: assets.box(Vector3(0.268f, 0.095f, 0.01f), Vector3(0f, 0.0585f, 0.005f), assets.woodDark)).apply { setPos(Vector3(0f, -DOOR_HINGE_Y, 0f)) })
         }.also { frame.addChild(it) }
         plaque = (assets.piece("fc_plaque") ?: assets.box(Vector3(0.12f, 0.06f, 0.01f), Vector3(0f, 0.03f, 0f), assets.brass)).also {
             it.enabled = false
@@ -488,14 +635,28 @@ class ChestScene(assets: Assets) : Scene(assets) {
     override fun partVisual(type: String): Entity = assets.piece("fc_$type")
         ?: assets.box(Vector3(0.1f, 0.02f, 0.04f), Vector3(0f, 0.01f, 0f), assets.brass)
 
-    /** Opened: the front door falls open and the 天工 plaque slides out and rises. */
+    /**
+     * Opened: the front door falls open, then the 天工 plaque slides straight out through the doorway and rises in
+     * front of the chest. v0.10.1: it used to rise while still inside and went through the lintel above the doorway,
+     * and through the door before it was open.
+     */
     override fun frame(dt: Double, ws: Workshop, bench: Bench, solvedFor: Double) {
-        val t = if (solvedFor < 0) 0.0 else (solvedFor / 2.5).coerceAtMost(1.0)
-        val e = t * t * (3 - 2 * t)
+        fun ease(x: Double) = x.coerceIn(0.0, 1.0).let { it * it * (3 - 2 * it) }
+        val e = if (solvedFor < 0) 0.0 else ease(solvedFor / 2.5)
         door?.transform()?.eulerAngles = EulerAngles((90 * e).toFloat(), 0f, 0f)
         plaque?.let {
             it.enabled = solvedFor >= 0
-            it.setPos(Vec3(0.0, 0.02 + 0.1 * e, 0.16 * e))
+            it.setPos(plaquePos(if (solvedFor < 0) 0.0 else (solvedFor - 2.5) / 2.0))
+        }
+    }
+
+    companion object {
+        const val DOOR_HINGE_Y = 0.011f
+
+        /** The plaque's place [u] of the way out (0..1): out through the doorway first, then up. */
+        fun plaquePos(u: Double): Vec3 {
+            fun ease(x: Double) = x.coerceIn(0.0, 1.0).let { it * it * (3 - 2 * it) }
+            return Vec3(0.0, 0.02 + 0.1 * ease((u - 0.6) / 0.4), 0.16 * ease(u / 0.6))
         }
     }
 }

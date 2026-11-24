@@ -21,9 +21,11 @@ class ModelDataExport {
                 } + "]}",
         )
         fun v(a: Vec3) = "[${a.x}, ${a.y}, ${a.z}]"
+        fun b(a: Aabb) = "[${v(a.lo)}, ${v(a.hi)}]"
+        // v0.10.1: each panel is a union of boxes (corner tabs and notches); lo/hi corners, meters.
         File(dir, "box.json").writeText(
-            """{"body": [${v(Boxes.body.first)}, ${v(Boxes.body.second)}], "panels": [""" +
-                Boxes.panelBoxes.joinToString(", ") { (s, c) -> "[${v(s)}, ${v(c)}]" } + "]}",
+            """{"body": ${b(Boxes.body)}, "plinth": ${b(Boxes.plinth)}, "panels": [""" +
+                Boxes.parts.joinToString(", ") { p -> "[" + p.joinToString(", ") { b(it) } + "]" } + "]}",
         )
         println("wrote ${dir.path}")
     }
